@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #0098DB;
+  --color-primary-light: #0098DB;
+  --color-primary-dark: #003A5C;
+  --color-navy: #0C2340;
+  --color-navy-light: #132F54;
+  --color-navy-border: #1A3A60;
+  --color-surface: #ffffff;
+  --color-surface-secondary: #F4F5F7;
+  --color-border: #E0E0E0;
+  --color-text: #1A1A1A;
+  --color-text-secondary: #5F6368;
+  --color-success: #137333;
+  --color-danger: #C5221F;
+  --color-warning: #E37400;
+  --color-info: #0098DB;
+}
+
+body {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  background-color: var(--color-surface-secondary);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Recharts tooltip override */
+.recharts-tooltip-wrapper {
+  outline: none !important;
+}
+
+.recharts-default-tooltip {
+  background: white !important;
+  border: 1px solid var(--color-border) !important;
+  border-radius: 2px !important;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.08) !important;
+  padding: 8px 12px !important;
+  font-size: 12px !important;
+}
+
+.recharts-legend-item-text {
+  font-size: 12px !important;
+  color: #5F6368 !important;
+}
+
+.recharts-cartesian-axis-tick-value {
+  fill: #5F6368 !important;
+}

@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<QBWCXML>
+    <AppName>Ultra1Plus Finance Sync</AppName>
+    <AppID></AppID>
+    <AppURL>https://localhost:8443/qbwc</AppURL>
+    <AppDescription>Syncs QuickBooks Enterprise data to the Ultra1Plus Finance snapshot database for Claude Enterprise reporting.</AppDescription>
+    <AppSupport>https://ultra1plus.com</AppSupport>
+    <UserName>u1p_finance_sync</UserName>
+    <OwnerID>{3a495a0e-897d-458b-955c-fb00a0b8f844}</OwnerID>
+    <FileID>{780ba2b9-c8ad-4ba6-9cb9-5b22b20a20e2}</FileID>
+    <QBType>QBFS</QBType>
+    <Scheduler>
+        <RunEveryNMinutes>15</RunEveryNMinutes>
+    </Scheduler>
+    <IsReadOnly>true</IsReadOnly>
+</QBWCXML>
