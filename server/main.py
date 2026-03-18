@@ -87,5 +87,9 @@ register_resources(mcp)
 logger.info("Registered %d tools", len(_registrations))
 
 
+import os
+os.environ["HOST"] = settings.mcp_host
+os.environ["PORT"] = str(settings.mcp_port)
+
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http", host=settings.mcp_host, port=settings.mcp_port)
+    mcp.run(transport="streamable-http")
