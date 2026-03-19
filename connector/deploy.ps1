@@ -288,7 +288,7 @@ if (-not $fwRule) {
 }
 
 # ---------------------------------------------------------------------------
-# DONE — SUMMARY
+# DONE - SUMMARY
 # ---------------------------------------------------------------------------
 Write-Host ""
 Write-Host "=======================================================" -ForegroundColor Green
@@ -315,7 +315,7 @@ Write-Host "    1. Open QuickBooks and log into the company file" -ForegroundCol
 Write-Host "    2. Open QuickBooks Web Connector" -ForegroundColor White
 Write-Host "    3. Click 'Add an Application'" -ForegroundColor White
 Write-Host "    4. Browse to the company's .qwc file (listed above)" -ForegroundColor White
-Write-Host "    5. QB will ask to authorize — click 'Yes, always allow'" -ForegroundColor White
+Write-Host "    5. QB will ask to authorize - click 'Yes, always allow'" -ForegroundColor White
 Write-Host "    6. In QBWC, enter the password: $QbwcPassword" -ForegroundColor White
 Write-Host "    7. Repeat for all 5 companies" -ForegroundColor White
 Write-Host "    8. Check 'Auto-Run' and click 'Update Selected'" -ForegroundColor White

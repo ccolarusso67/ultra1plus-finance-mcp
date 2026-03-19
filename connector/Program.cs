@@ -35,7 +35,7 @@ var app = builder.Build();
 // Health check
 app.MapGet("/health", () => Results.Ok(new { status = "healthy", service = "U1PFinanceSync" }));
 
-// QBWC diagnostics endpoint — run this from a browser to verify the connector is working
+// QBWC diagnostics endpoint - run this from a browser to verify the connector is working
 app.MapGet("/diagnostics", (CompanyRegistry registry, IConfiguration config) =>
 {
     var companies = registry.GetAll().Select(c => new
@@ -88,7 +88,7 @@ app.MapGet("/diagnostics", (CompanyRegistry registry, IConfiguration config) =>
         companies = companies,
         troubleshooting = new
         {
-            step1_verify_wsdl = "Browse to https://YOUR_SERVER:8443/qbwc?wsdl — you should see XML",
+            step1_verify_wsdl = "Browse to https://YOUR_SERVER:8443/qbwc?wsdl - you should see XML",
             step2_verify_https = "Ensure the SSL certificate is trusted on the Windows machine, or install it in Trusted Root CAs",
             step3_verify_firewall = "Ensure Windows Firewall allows inbound on port 8443: netsh advfirewall firewall add rule name='QBWC' dir=in action=allow protocol=tcp localport=8443",
             step4_verify_qb_running = "QuickBooks must be running (or QBWC must have 'allow access even if QB is not running' permission)",
@@ -107,7 +107,7 @@ app.MapGet("/diagnostics", (CompanyRegistry registry, IConfiguration config) =>
     });
 });
 
-// Test authenticate endpoint — simulate what QBWC does
+// Test authenticate endpoint - simulate what QBWC does
 app.MapGet("/test-auth/{username}/{password}", (
     string username, string password,
     IQBWebConnectorService svc) =>
@@ -128,7 +128,7 @@ app.MapGet("/test-auth/{username}/{password}", (
     });
 });
 
-Log.Information("Ultra1Plus Finance Sync starting — multi-company mode ({CompanyCount} companies)",
+Log.Information("Ultra1Plus Finance Sync starting - multi-company mode ({CompanyCount} companies)",
     app.Services.GetRequiredService<CompanyRegistry>().GetAll().Count);
 
 app.Run();
