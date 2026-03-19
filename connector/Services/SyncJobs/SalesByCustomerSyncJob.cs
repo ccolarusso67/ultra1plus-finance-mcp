@@ -11,17 +11,19 @@ namespace U1PFinanceSync.Services.SyncJobs;
 public class SalesByCustomerSyncJob : ISyncJob
 {
     public string Name => "sales_by_customer_sync";
+    public string CompanyId => _companyId;
 
     private readonly string _connectionString;
+    private readonly string _companyId;
 
-    public SalesByCustomerSyncJob(string connectionString)
+    public SalesByCustomerSyncJob(string connectionString, string companyId)
     {
         _connectionString = connectionString;
+        _companyId = companyId;
     }
 
     public List<string> GetQbXmlRequests()
     {
-        // Current quarter period
         var now = DateTime.UtcNow;
         var quarterStart = new DateTime(now.Year, ((now.Month - 1) / 3) * 3 + 1, 1);
         var quarterEnd = quarterStart.AddMonths(3).AddDays(-1);
@@ -55,14 +57,13 @@ public class SalesByCustomerSyncJob : ISyncJob
         await using var conn = new NpgsqlConnection(_connectionString);
         await conn.OpenAsync();
 
-        // Extract period from report
         var reportPeriod = reportRet.Element("ReportPeriod");
-        var periodStart = reportPeriod?.Element("FromReportDate")?.Value ?? "";
-        var periodEnd = reportPeriod?.Element("ToReportDate")?.Value ?? "";
+        var periodStart = reportPeriod?.Element("FromReportDate")?.Value;
+        var periodEnd = reportPeriod?.Element("ToReportDate")?.Value;
+        if (string.IsNullOrWhiteSpace(periodStart) || string.IsNullOrWhiteSpace(periodEnd))
+            return;
 
         var recordCount = 0;
-
-        // Sales by Customer Summary columns: Customer, Amount
         var rows = reportRet.Descendants("DataRow");
 
         foreach (var row in rows)
@@ -75,27 +76,26 @@ public class SalesByCustomerSyncJob : ISyncJob
 
             var salesAmount = ParseDecimal(cols[1].Attribute("value")?.Value);
 
-            // Look up customer_id
+            // Look up customer_id (scoped to this company)
             await using var lookupCmd = new NpgsqlCommand(
-                "SELECT customer_id FROM customers WHERE full_name = @name LIMIT 1", conn);
+                "SELECT customer_id FROM customers WHERE company_id = @companyId AND full_name = @name LIMIT 1", conn);
+            lookupCmd.Parameters.AddWithValue("companyId", _companyId);
             lookupCmd.Parameters.AddWithValue("name", customerName);
             var customerId = (string?)await lookupCmd.ExecuteScalarAsync();
 
-            // COGS and margin will be computed from invoice_lines data.
-            // For the report-based sync, we capture the sales total.
-            // Margin is calculated by joining with invoice_lines at query time.
             await using var cmd = new NpgsqlCommand(@"
                 INSERT INTO sales_by_customer
-                    (customer_id, customer_name, period_start, period_end,
+                    (company_id, customer_id, customer_name, period_start, period_end,
                      sales_amount, cogs_amount, gross_margin, order_count, snapshot_at)
-                VALUES (@custId, @name, @pStart::date, @pEnd::date,
+                VALUES (@companyId, @custId, @name, @pStart::date, @pEnd::date,
                     @sales, 0, 0, 0, NOW())
-                ON CONFLICT (customer_id, period_start, period_end) DO UPDATE SET
+                ON CONFLICT (company_id, customer_id, period_start, period_end) DO UPDATE SET
                     customer_name = EXCLUDED.customer_name,
                     sales_amount = EXCLUDED.sales_amount,
                     snapshot_at = NOW()
             ", conn);
 
+            cmd.Parameters.AddWithValue("companyId", _companyId);
             cmd.Parameters.AddWithValue("custId", (object?)customerId ?? DBNull.Value);
             cmd.Parameters.AddWithValue("name", customerName);
             cmd.Parameters.AddWithValue("pStart", periodStart);
@@ -110,9 +110,10 @@ public class SalesByCustomerSyncJob : ISyncJob
             UPDATE sync_status SET
                 last_run_at = NOW(), last_success_at = NOW(),
                 records_synced = @count, status = 'success', error_message = NULL
-            WHERE job_name = 'sales_by_customer_sync'
+            WHERE company_id = @companyId AND job_name = 'sales_by_customer_sync'
         ", conn);
         statusCmd.Parameters.AddWithValue("count", recordCount);
+        statusCmd.Parameters.AddWithValue("companyId", _companyId);
         await statusCmd.ExecuteNonQueryAsync();
     }
 

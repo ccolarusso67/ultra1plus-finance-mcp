@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<QBWCXML>
+    <AppName>U1P Finance Sync - U1P Ultrachem</AppName>
+    <AppID></AppID>
+    <AppURL>https://localhost:8443/qbwc</AppURL>
+    <AppDescription>Syncs U1P Ultrachem financial data to the Finance MCP database</AppDescription>
+    <AppSupport>https://ultra1plus.com</AppSupport>
+    <UserName>u1p_sync_ultrachem</UserName>
+    <OwnerID>{3058eb18-00ef-4754-8d0d-8811e77b9c5e}</OwnerID>
+    <FileID>{d3952fb4-0021-42e5-8b36-1a0700aa06e9}</FileID>
+    <QBType>QBFS</QBType>
+    <Scheduler>
+        <RunEveryNMinutes>15</RunEveryNMinutes>
+    </Scheduler>
+    <IsReadOnly>true</IsReadOnly>
+</QBWCXML>

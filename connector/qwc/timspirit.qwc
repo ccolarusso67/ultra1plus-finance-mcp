@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<QBWCXML>
+    <AppName>U1P Finance Sync - Timspirit</AppName>
+    <AppID></AppID>
+    <AppURL>https://localhost:8443/qbwc</AppURL>
+    <AppDescription>Syncs Timspirit financial data to the Finance MCP database</AppDescription>
+    <AppSupport>https://ultra1plus.com</AppSupport>
+    <UserName>u1p_sync_timspirit</UserName>
+    <OwnerID>{46f7b358-d7d1-4a16-8c33-0058ef4e3c50}</OwnerID>
+    <FileID>{2d2408ef-790a-4505-8db3-10dbb2e2cb21}</FileID>
+    <QBType>QBFS</QBType>
+    <Scheduler>
+        <RunEveryNMinutes>15</RunEveryNMinutes>
+    </Scheduler>
+    <IsReadOnly>true</IsReadOnly>
+</QBWCXML>

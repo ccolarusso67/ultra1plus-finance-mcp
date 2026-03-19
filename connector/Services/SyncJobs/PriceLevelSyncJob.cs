@@ -10,12 +10,15 @@ namespace U1PFinanceSync.Services.SyncJobs;
 public class PriceLevelSyncJob : ISyncJob
 {
     public string Name => "price_level_sync";
+    public string CompanyId => _companyId;
 
     private readonly string _connectionString;
+    private readonly string _companyId;
 
-    public PriceLevelSyncJob(string connectionString)
+    public PriceLevelSyncJob(string connectionString, string companyId)
     {
         _connectionString = connectionString;
+        _companyId = companyId;
     }
 
     public List<string> GetQbXmlRequests()
@@ -51,21 +54,16 @@ public class PriceLevelSyncJob : ISyncJob
 
             if (priceLevelType == "FixedPercentage")
             {
-                // Fixed percentage discount applied to all items
                 var discountPct = ParseDecimal(pl.Element("PriceLevelFixedPercentage")?.Value);
 
-                // Find customers assigned to this price level
-                // QB doesn't directly return customer assignment in PriceLevelQuery,
-                // but the price level name is referenced in CustomerRet.PriceLevelRef.
-                // We store the price level with null customer_id and item_id
-                // to represent the global discount.
                 await using var cmd = new NpgsqlCommand(@"
-                    INSERT INTO price_levels (price_level_name, customer_id, item_id, custom_price, discount_pct, updated_at)
-                    VALUES (@name, NULL, NULL, NULL, @discount, NOW())
-                    ON CONFLICT (price_level_name, customer_id, item_id)
+                    INSERT INTO price_levels (company_id, price_level_name, customer_id, item_id, custom_price, discount_pct, updated_at)
+                    VALUES (@companyId, @name, NULL, NULL, NULL, @discount, NOW())
+                    ON CONFLICT (company_id, price_level_name, customer_id, item_id)
                     DO UPDATE SET discount_pct = EXCLUDED.discount_pct, updated_at = NOW()
                 ", conn);
 
+                cmd.Parameters.AddWithValue("companyId", _companyId);
                 cmd.Parameters.AddWithValue("name", priceLevelName);
                 cmd.Parameters.AddWithValue("discount", discountPct);
 
@@ -74,7 +72,6 @@ public class PriceLevelSyncJob : ISyncJob
             }
             else if (priceLevelType == "PerItem")
             {
-                // Per-item custom pricing
                 foreach (var itemEntry in pl.Elements("PriceLevelPerItemRet"))
                 {
                     var itemId = itemEntry.Element("ItemRef")?.Element("ListID")?.Value;
@@ -84,15 +81,16 @@ public class PriceLevelSyncJob : ISyncJob
                     if (itemId == null) continue;
 
                     await using var cmd = new NpgsqlCommand(@"
-                        INSERT INTO price_levels (price_level_name, customer_id, item_id, custom_price, discount_pct, updated_at)
-                        VALUES (@name, NULL, @itemId, @price, @discount, NOW())
-                        ON CONFLICT (price_level_name, customer_id, item_id)
+                        INSERT INTO price_levels (company_id, price_level_name, customer_id, item_id, custom_price, discount_pct, updated_at)
+                        VALUES (@companyId, @name, NULL, @itemId, @price, @discount, NOW())
+                        ON CONFLICT (company_id, price_level_name, customer_id, item_id)
                         DO UPDATE SET
                             custom_price = EXCLUDED.custom_price,
                             discount_pct = EXCLUDED.discount_pct,
                             updated_at = NOW()
                     ", conn);
 
+                    cmd.Parameters.AddWithValue("companyId", _companyId);
                     cmd.Parameters.AddWithValue("name", priceLevelName);
                     cmd.Parameters.AddWithValue("itemId", itemId);
                     cmd.Parameters.AddWithValue("price", customPrice > 0 ? customPrice : (object)DBNull.Value);
@@ -108,9 +106,10 @@ public class PriceLevelSyncJob : ISyncJob
             UPDATE sync_status SET
                 last_run_at = NOW(), last_success_at = NOW(),
                 records_synced = @count, status = 'success', error_message = NULL
-            WHERE job_name = 'price_level_sync'
+            WHERE company_id = @companyId AND job_name = 'price_level_sync'
         ", conn);
         statusCmd.Parameters.AddWithValue("count", recordCount);
+        statusCmd.Parameters.AddWithValue("companyId", _companyId);
         await statusCmd.ExecuteNonQueryAsync();
     }
 

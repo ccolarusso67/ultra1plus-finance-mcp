@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<QBWCXML>
+    <AppName>U1P Finance Sync - U1Dynamics Manufacturing</AppName>
+    <AppID></AppID>
+    <AppURL>https://localhost:8443/qbwc</AppURL>
+    <AppDescription>Syncs U1Dynamics Manufacturing financial data to the Finance MCP database</AppDescription>
+    <AppSupport>https://ultra1plus.com</AppSupport>
+    <UserName>u1p_sync_u1dynamics</UserName>
+    <OwnerID>{4e07cfa1-7693-4853-a73b-17f88938e85c}</OwnerID>
+    <FileID>{3c152f62-4e17-430d-b845-c05c9006abcd}</FileID>
+    <QBType>QBFS</QBType>
+    <Scheduler>
+        <RunEveryNMinutes>15</RunEveryNMinutes>
+    </Scheduler>
+    <IsReadOnly>true</IsReadOnly>
+</QBWCXML>

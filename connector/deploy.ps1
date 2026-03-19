@@ -1,24 +1,33 @@
 #Requires -RunAsAdministrator
 <#
 .SYNOPSIS
-    Deploys Ultra1Plus Finance Sync connector on a Windows server with QuickBooks.
+    Deploys Ultra1Plus Finance Sync connector (multi-company) on a Windows server with QuickBooks.
 
 .DESCRIPTION
     This script:
-    1. Installs .NET 8 SDK (if not installed)
-    2. Installs PostgreSQL 16 (if not installed)
-    3. Creates the u1p_finance database and applies schema
-    4. Builds the connector
-    5. Installs it as a Windows Service
-    6. Generates the .qwc file for QuickBooks Web Connector
+    1. Verifies .NET 8 SDK and PostgreSQL are installed
+    2. Applies the multi-company database migration (002)
+    3. Updates appsettings.json with real passwords and server hostname
+    4. Builds and publishes the connector
+    5. Installs/updates the Windows Service
+    6. Configures firewall
+    7. Generates QWC files with correct server URL for all 5 companies
 
 .NOTES
     Run as Administrator from the connector/ directory.
-    After running, you must manually import the .qwc file into QBWC.
+    After running, you must manually import each .qwc file into QBWC.
+
+.PARAMETER DbPassword
+    PostgreSQL password for the u1p_finance user.
+
+.PARAMETER QbwcPassword
+    Password for QBWC authentication (used for all companies).
+
+.PARAMETER ConnectorPort
+    HTTPS port for the SOAP endpoint (default: 8443).
 #>
 
 param(
-    [string]$QBCompanyFile = "C:\Users\Public\Documents\Intuit\QuickBooks\Company Files\Ultra1Plus.qbw",
     [string]$DbPassword = "U1p_F1nance_2024!",
     [string]$QbwcPassword = "U1p_Sync_2024!",
     [string]$InstallDir = "C:\U1PFinanceSync",
@@ -29,73 +38,72 @@ param(
 $ErrorActionPreference = "Stop"
 
 Write-Host ""
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "  Ultra1Plus Finance Sync - Deployment" -ForegroundColor Cyan
-Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "=======================================================" -ForegroundColor Cyan
+Write-Host "  Ultra1Plus Finance Sync - Multi-Company Deployment" -ForegroundColor Cyan
+Write-Host "=======================================================" -ForegroundColor Cyan
+Write-Host ""
+
+# Company definitions
+$Companies = @(
+    @{ Id = "u1p_ultrachem"; Name = "U1P Ultrachem"; Code = "U1P"; User = "u1p_sync_ultrachem"; File = "C:\Users\Public\Documents\Intuit\QuickBooks\Company Files\u1p_ultrachem.qbw" },
+    @{ Id = "u1dynamics";    Name = "U1Dynamics Manufacturing LLC"; Code = "U1D"; User = "u1p_sync_u1dynamics"; File = "C:\Users\Public\Documents\Intuit\QuickBooks\Company Files\u1dynamics manufacturing llc.qbw" },
+    @{ Id = "maxilub";       Name = "Maxilub"; Code = "MAX"; User = "u1p_sync_maxilub"; File = "C:\Users\Public\Documents\Intuit\QuickBooks\Company Files\MAXILUB.QBW" },
+    @{ Id = "italchacao";    Name = "Italchacao Services LLC"; Code = "ITC"; User = "u1p_sync_italchacao"; File = "C:\Users\Public\Documents\Intuit\QuickBooks\Company Files\ITALCHACAO SERVICES LLC.qbw" },
+    @{ Id = "timspirit";     Name = "Timspirit LLC"; Code = "TSP"; User = "u1p_sync_timspirit"; File = "C:\Users\Public\Documents\Intuit\QuickBooks\Company Files\TIMSPIRIT LLC.qbw" }
+)
+
+$serverHostname = [System.Net.Dns]::GetHostName()
+$serverIP = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notlike "*Loopback*" -and $_.PrefixOrigin -ne "WellKnown" } | Select-Object -First 1).IPAddress
+
+Write-Host "  Server: $serverHostname ($serverIP)" -ForegroundColor Gray
+Write-Host "  Companies: $($Companies.Count)" -ForegroundColor Gray
 Write-Host ""
 
 # ---------------------------------------------------------------------------
-# 1. CHECK / INSTALL .NET 8 SDK
+# 1. VERIFY PREREQUISITES
 # ---------------------------------------------------------------------------
-Write-Host "[1/6] Checking .NET 8 SDK..." -ForegroundColor Yellow
+Write-Host "[1/7] Verifying prerequisites..." -ForegroundColor Yellow
 
+# .NET 8
 $dotnetVersion = $null
 try { $dotnetVersion = (dotnet --version 2>$null) } catch {}
-
 if ($dotnetVersion -and $dotnetVersion.StartsWith("8.")) {
-    Write-Host "  .NET $dotnetVersion already installed." -ForegroundColor Green
+    Write-Host "  .NET $dotnetVersion OK" -ForegroundColor Green
 } else {
-    Write-Host "  Installing .NET 8 SDK..." -ForegroundColor Yellow
-    $dotnetInstaller = "$env:TEMP\dotnet-sdk-8.0-win-x64.exe"
-
-    # Download .NET 8 SDK
-    Invoke-WebRequest -Uri "https://dot.net/v1/dotnet-install.ps1" -OutFile "$env:TEMP\dotnet-install.ps1"
-    & "$env:TEMP\dotnet-install.ps1" -Channel 8.0
-
-    # Verify
-    $env:PATH = "$env:LOCALAPPDATA\Microsoft\dotnet;$env:PATH"
-    dotnet --version
-    Write-Host "  .NET 8 SDK installed." -ForegroundColor Green
+    Write-Host "  ERROR: .NET 8 SDK not found. Install from https://dot.net/download" -ForegroundColor Red
+    exit 1
 }
 
-# ---------------------------------------------------------------------------
-# 2. CHECK / INSTALL POSTGRESQL 16
-# ---------------------------------------------------------------------------
-Write-Host "[2/6] Checking PostgreSQL..." -ForegroundColor Yellow
-
+# PostgreSQL
 $pgPath = "C:\Program Files\PostgreSQL\16"
 $psqlExe = "$pgPath\bin\psql.exe"
-
-if (Test-Path $psqlExe) {
-    Write-Host "  PostgreSQL 16 already installed." -ForegroundColor Green
-} else {
-    Write-Host "  Downloading PostgreSQL 16 installer..." -ForegroundColor Yellow
-
-    $pgInstaller = "$env:TEMP\postgresql-16-windows-x64.exe"
-    if (-not (Test-Path $pgInstaller)) {
-        Invoke-WebRequest -Uri "https://get.enterprisedb.com/postgresql/postgresql-16.6-1-windows-x64.exe" -OutFile $pgInstaller
-    }
-
-    Write-Host "  Installing PostgreSQL 16 (this may take a few minutes)..." -ForegroundColor Yellow
-    Start-Process -FilePath $pgInstaller -ArgumentList `
-        "--mode unattended",
-        "--unattendedmodeui none",
-        "--superpassword $DbPassword",
-        "--serverport $PgPort",
-        "--prefix `"$pgPath`"" -Wait -NoNewWindow
-
-    # Add to PATH for this session
-    $env:PATH = "$pgPath\bin;$env:PATH"
-    Write-Host "  PostgreSQL 16 installed." -ForegroundColor Green
+if (-not (Test-Path $psqlExe)) {
+    $pgPath = "C:\Program Files\PostgreSQL\15"
+    $psqlExe = "$pgPath\bin\psql.exe"
 }
-
-# Ensure PostgreSQL bin is in PATH
+if (Test-Path $psqlExe) {
+    Write-Host "  PostgreSQL OK ($psqlExe)" -ForegroundColor Green
+} else {
+    Write-Host "  ERROR: PostgreSQL not found. Install PostgreSQL 15+ first." -ForegroundColor Red
+    exit 1
+}
 $env:PATH = "$pgPath\bin;$env:PATH"
 
+# Verify company files exist
+Write-Host "  Checking company files..." -ForegroundColor Gray
+foreach ($company in $Companies) {
+    if (Test-Path $company.File) {
+        Write-Host "    [OK] $($company.Name): $($company.File)" -ForegroundColor Green
+    } else {
+        Write-Host "    [MISSING] $($company.Name): $($company.File)" -ForegroundColor Red
+        Write-Host "    WARNING: This company file will fail to sync until the file is present." -ForegroundColor Yellow
+    }
+}
+
 # ---------------------------------------------------------------------------
-# 3. CREATE DATABASE AND APPLY SCHEMA
+# 2. DATABASE SETUP
 # ---------------------------------------------------------------------------
-Write-Host "[3/6] Setting up database..." -ForegroundColor Yellow
+Write-Host "[2/7] Setting up database..." -ForegroundColor Yellow
 
 $env:PGPASSWORD = $DbPassword
 
@@ -111,129 +119,131 @@ if ($dbExists -ne "1") {
     Write-Host "  Database 'u1p_finance' already exists." -ForegroundColor Green
 }
 
-# Grant permissions
 & $psqlExe -U postgres -p $PgPort -c "GRANT ALL PRIVILEGES ON DATABASE u1p_finance TO u1p_finance;"
+& $psqlExe -U postgres -p $PgPort -d u1p_finance -c "GRANT ALL ON SCHEMA public TO u1p_finance;" 2>$null
 
-# Apply schema
-$schemaFile = Join-Path $PSScriptRoot "..\db\migrations\001_initial_schema.sql"
-if (Test-Path $schemaFile) {
-    & $psqlExe -U u1p_finance -d u1p_finance -p $PgPort -f $schemaFile 2>$null
-    Write-Host "  Schema applied." -ForegroundColor Green
+# Apply initial schema (if tables don't exist yet)
+$tablesExist = & $psqlExe -U u1p_finance -d u1p_finance -p $PgPort -tAc "SELECT 1 FROM information_schema.tables WHERE table_name='customers' LIMIT 1" 2>$null
+if ($tablesExist -ne "1") {
+    $schemaFile = Join-Path $PSScriptRoot "..\db\migrations\001_initial_schema.sql"
+    if (Test-Path $schemaFile) {
+        & $psqlExe -U u1p_finance -d u1p_finance -p $PgPort -f $schemaFile
+        Write-Host "  Initial schema (001) applied." -ForegroundColor Green
+    } else {
+        Write-Host "  ERROR: Schema file not found at $schemaFile" -ForegroundColor Red
+        exit 1
+    }
 } else {
-    Write-Host "  WARNING: Schema file not found at $schemaFile" -ForegroundColor Red
-    Write-Host "  Copy db/migrations/001_initial_schema.sql to the server and run manually:" -ForegroundColor Red
-    Write-Host "  psql -U u1p_finance -d u1p_finance -f 001_initial_schema.sql" -ForegroundColor Red
+    Write-Host "  Initial schema already present." -ForegroundColor Green
 }
+
+# Apply multi-company migration (if companies table doesn't exist yet)
+$companiesExist = & $psqlExe -U u1p_finance -d u1p_finance -p $PgPort -tAc "SELECT 1 FROM information_schema.tables WHERE table_name='companies' LIMIT 1" 2>$null
+if ($companiesExist -ne "1") {
+    $migrationFile = Join-Path $PSScriptRoot "..\db\migrations\002_multi_company.sql"
+    if (Test-Path $migrationFile) {
+        Write-Host "  Applying multi-company migration (002)..." -ForegroundColor Yellow
+        & $psqlExe -U u1p_finance -d u1p_finance -p $PgPort -f $migrationFile
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "  Multi-company migration (002) applied successfully." -ForegroundColor Green
+        } else {
+            Write-Host "  ERROR: Migration failed! Check the output above." -ForegroundColor Red
+            exit 1
+        }
+    } else {
+        Write-Host "  ERROR: Migration file not found at $migrationFile" -ForegroundColor Red
+        exit 1
+    }
+} else {
+    Write-Host "  Multi-company migration already applied." -ForegroundColor Green
+}
+
+# Verify sync_status has all companies
+$syncCount = & $psqlExe -U u1p_finance -d u1p_finance -p $PgPort -tAc "SELECT COUNT(DISTINCT company_id) FROM sync_status" 2>$null
+Write-Host "  sync_status has entries for $syncCount companies." -ForegroundColor Gray
 
 $env:PGPASSWORD = $null
 
 # ---------------------------------------------------------------------------
-# 4. UPDATE CONFIGURATION
+# 3. UPDATE APPSETTINGS.JSON WITH REAL PASSWORDS
 # ---------------------------------------------------------------------------
-Write-Host "[4/6] Configuring connector..." -ForegroundColor Yellow
+Write-Host "[3/7] Updating appsettings.json..." -ForegroundColor Yellow
 
-$serverHostname = [System.Net.Dns]::GetHostName()
-$serverIP = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notlike "*Loopback*" -and $_.PrefixOrigin -ne "WellKnown" } | Select-Object -First 1).IPAddress
+$appSettingsPath = Join-Path $PSScriptRoot "appsettings.json"
+$appSettings = Get-Content $appSettingsPath -Raw | ConvertFrom-Json
 
-# Update appsettings.json
-$appSettings = @{
-    ConnectionStrings = @{
-        FinanceDb = "Host=localhost;Port=$PgPort;Database=u1p_finance;Username=u1p_finance;Password=$DbPassword"
-    }
-    QuickBooks = @{
-        CompanyFile = $QBCompanyFile
-        AppName     = "Ultra1Plus Finance Sync"
-        AppId       = ""
-    }
-    WebConnector = @{
-        Username = "u1p_finance_sync"
-        Password = $QbwcPassword
-        Port     = $ConnectorPort
-    }
-    SyncSchedule = @{
-        ArAging           = "0 */1 * * *"
-        ApAging           = "0 */1 * * *"
-        Invoices          = "*/15 * * * *"
-        Payments          = "*/15 * * * *"
-        Bills             = "0 */1 * * *"
-        Inventory         = "0 */1 * * *"
-        Pnl               = "0 2 * * *"
-        SalesByCustomer   = "0 2 * * *"
-        SalesOrders       = "*/30 * * * *"
-        Products          = "0 3 * * *"
-        PriceLevels       = "0 3 * * *"
-        Customers         = "0 3 * * *"
-    }
-    Kestrel = @{
-        Endpoints = @{
-            Https = @{
-                Url = "https://0.0.0.0:$ConnectorPort"
-            }
-        }
-    }
-    Logging = @{
-        LogLevel = @{
-            Default = "Information"
-        }
-    }
-} | ConvertTo-Json -Depth 5
+# Update DB password
+$appSettings.ConnectionStrings.FinanceDb = "Host=localhost;Port=$PgPort;Database=u1p_finance;Username=u1p_finance;Password=$DbPassword"
 
-$appSettings | Out-File -FilePath (Join-Path $PSScriptRoot "appsettings.json") -Encoding utf8
-Write-Host "  appsettings.json updated." -ForegroundColor Green
+# Update all company passwords
+foreach ($companyConfig in $appSettings.Companies) {
+    $companyConfig.Password = $QbwcPassword
+}
 
-# Generate .qwc file with correct URL
-$qwcContent = @"
-<?xml version="1.0"?>
-<QBWCXML>
-    <AppName>Ultra1Plus Finance Sync</AppName>
-    <AppID></AppID>
-    <AppURL>https://$($serverHostname):$ConnectorPort/qbwc</AppURL>
-    <AppDescription>Syncs QuickBooks Enterprise data to Ultra1Plus Finance dashboard.</AppDescription>
-    <AppSupport>https://ultra1plus.com</AppSupport>
-    <UserName>u1p_finance_sync</UserName>
-    <OwnerID>{3a495a0e-897d-458b-955c-fb00a0b8f844}</OwnerID>
-    <FileID>{780ba2b9-c8ad-4ba6-9cb9-5b22b20a20e2}</FileID>
-    <QBType>QBFS</QBType>
-    <Scheduler>
-        <RunEveryNMinutes>15</RunEveryNMinutes>
-    </Scheduler>
-    <IsReadOnly>true</IsReadOnly>
-</QBWCXML>
-"@
+# Update Kestrel port
+$appSettings.Kestrel.Endpoints.Https.Url = "https://0.0.0.0:$ConnectorPort"
 
-$qwcPath = Join-Path $InstallDir "U1PFinanceSync.qwc"
-
-Write-Host "  Server hostname: $serverHostname" -ForegroundColor Gray
-Write-Host "  Server IP: $serverIP" -ForegroundColor Gray
-Write-Host "  QBWC URL: https://$($serverHostname):$ConnectorPort/qbwc" -ForegroundColor Gray
+$appSettings | ConvertTo-Json -Depth 5 | Out-File -FilePath $appSettingsPath -Encoding utf8
+Write-Host "  appsettings.json updated with real passwords." -ForegroundColor Green
 
 # ---------------------------------------------------------------------------
-# 5. BUILD AND INSTALL AS WINDOWS SERVICE
+# 4. BUILD AND PUBLISH
 # ---------------------------------------------------------------------------
-Write-Host "[5/6] Building and installing service..." -ForegroundColor Yellow
+Write-Host "[4/7] Building connector..." -ForegroundColor Yellow
 
-# Create install directory
 if (-not (Test-Path $InstallDir)) {
     New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
 }
 
-# Build the project
 Push-Location $PSScriptRoot
 dotnet publish -c Release -o $InstallDir --self-contained false
 Pop-Location
 
-# Save the .qwc file in install directory
-$qwcContent | Out-File -FilePath $qwcPath -Encoding utf8
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "  ERROR: Build failed!" -ForegroundColor Red
+    exit 1
+}
 Write-Host "  Built and published to $InstallDir" -ForegroundColor Green
 
-# Create dev certificate for HTTPS (QBWC requires HTTPS)
+# Copy appsettings.json to install dir
+Copy-Item $appSettingsPath -Destination $InstallDir -Force
+
+# ---------------------------------------------------------------------------
+# 5. GENERATE QWC FILES WITH SERVER HOSTNAME
+# ---------------------------------------------------------------------------
+Write-Host "[5/7] Generating QWC files..." -ForegroundColor Yellow
+
+$qwcSourceDir = Join-Path $PSScriptRoot "qwc"
+$qwcTargetDir = Join-Path $InstallDir "qwc"
+
+if (-not (Test-Path $qwcTargetDir)) {
+    New-Item -ItemType Directory -Path $qwcTargetDir -Force | Out-Null
+}
+
+# Update AppURL in each QWC file to use actual server hostname
+foreach ($qwcFile in Get-ChildItem -Path $qwcSourceDir -Filter "*.qwc") {
+    $content = Get-Content $qwcFile.FullName -Raw
+    $content = $content -replace "https://localhost:8443/qbwc", "https://$($serverHostname):$ConnectorPort/qbwc"
+    $targetPath = Join-Path $qwcTargetDir $qwcFile.Name
+    $content | Out-File -FilePath $targetPath -Encoding utf8
+    Write-Host "  Generated: $targetPath" -ForegroundColor Gray
+}
+Write-Host "  $((Get-ChildItem $qwcTargetDir -Filter '*.qwc').Count) QWC files generated." -ForegroundColor Green
+
+# ---------------------------------------------------------------------------
+# 6. INSTALL/UPDATE WINDOWS SERVICE
+# ---------------------------------------------------------------------------
+Write-Host "[6/7] Installing Windows service..." -ForegroundColor Yellow
+
+# Create dev certificate for HTTPS
 dotnet dev-certs https --trust 2>$null
-Write-Host "  HTTPS dev certificate created." -ForegroundColor Green
+Write-Host "  HTTPS dev certificate trusted." -ForegroundColor Green
 
 # Stop existing service if running
 $existingService = Get-Service -Name "U1PFinanceSync" -ErrorAction SilentlyContinue
 if ($existingService) {
     Stop-Service -Name "U1PFinanceSync" -Force 2>$null
+    Start-Sleep -Seconds 2
     sc.exe delete "U1PFinanceSync" 2>$null
     Start-Sleep -Seconds 2
     Write-Host "  Removed existing service." -ForegroundColor Gray
@@ -244,21 +254,28 @@ $exePath = Join-Path $InstallDir "U1PFinanceSync.exe"
 sc.exe create "U1PFinanceSync" `
     binpath= "`"$exePath`"" `
     start= auto `
-    DisplayName= "Ultra1Plus Finance Sync"
+    DisplayName= "Ultra1Plus Finance Sync (Multi-Company)"
 
-sc.exe description "U1PFinanceSync" "Syncs QuickBooks Enterprise data to PostgreSQL for Ultra1Plus Finance Dashboard"
+sc.exe description "U1PFinanceSync" "Syncs 5 QuickBooks Enterprise company files to PostgreSQL for Finance Dashboard and MCP"
 
 # Configure service recovery (restart on failure)
 sc.exe failure "U1PFinanceSync" reset= 86400 actions= restart/5000/restart/10000/restart/30000
 
 # Start the service
 Start-Service -Name "U1PFinanceSync"
-Write-Host "  Service installed and started." -ForegroundColor Green
+Start-Sleep -Seconds 3
+
+$svcStatus = (Get-Service -Name "U1PFinanceSync").Status
+if ($svcStatus -eq "Running") {
+    Write-Host "  Service installed and running." -ForegroundColor Green
+} else {
+    Write-Host "  WARNING: Service status is '$svcStatus'. Check logs at $InstallDir\logs\" -ForegroundColor Red
+}
 
 # ---------------------------------------------------------------------------
-# 6. FIREWALL RULE
+# 7. FIREWALL RULE
 # ---------------------------------------------------------------------------
-Write-Host "[6/6] Configuring firewall..." -ForegroundColor Yellow
+Write-Host "[7/7] Configuring firewall..." -ForegroundColor Yellow
 
 $fwRule = Get-NetFirewallRule -DisplayName "U1PFinanceSync" -ErrorAction SilentlyContinue
 if (-not $fwRule) {
@@ -271,33 +288,41 @@ if (-not $fwRule) {
 }
 
 # ---------------------------------------------------------------------------
-# DONE
+# DONE — SUMMARY
 # ---------------------------------------------------------------------------
 Write-Host ""
-Write-Host "========================================" -ForegroundColor Green
+Write-Host "=======================================================" -ForegroundColor Green
 Write-Host "  DEPLOYMENT COMPLETE" -ForegroundColor Green
-Write-Host "========================================" -ForegroundColor Green
+Write-Host "=======================================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "  Service:    U1PFinanceSync (running)" -ForegroundColor White
-Write-Host "  SOAP URL:   https://$($serverHostname):$ConnectorPort/qbwc" -ForegroundColor White
-Write-Host "  Health:     https://$($serverHostname):$ConnectorPort/health" -ForegroundColor White
-Write-Host "  Database:   u1p_finance on localhost:$PgPort" -ForegroundColor White
-Write-Host "  Logs:       $InstallDir\logs\" -ForegroundColor White
-Write-Host "  QWC File:   $qwcPath" -ForegroundColor White
+Write-Host "  Service:      U1PFinanceSync ($svcStatus)" -ForegroundColor White
+Write-Host "  SOAP URL:     https://$($serverHostname):$ConnectorPort/qbwc" -ForegroundColor White
+Write-Host "  WSDL:         https://$($serverHostname):$ConnectorPort/qbwc?wsdl" -ForegroundColor White
+Write-Host "  Health:       https://$($serverHostname):$ConnectorPort/health" -ForegroundColor White
+Write-Host "  Diagnostics:  https://$($serverHostname):$ConnectorPort/diagnostics" -ForegroundColor White
+Write-Host "  Database:     u1p_finance on localhost:$PgPort" -ForegroundColor White
+Write-Host "  Logs:         $InstallDir\logs\" -ForegroundColor White
 Write-Host ""
-Write-Host "  QBWC Credentials:" -ForegroundColor Yellow
-Write-Host "    Username: u1p_finance_sync" -ForegroundColor White
-Write-Host "    Password: $QbwcPassword" -ForegroundColor White
+Write-Host "  COMPANIES ($($Companies.Count)):" -ForegroundColor Yellow
+foreach ($company in $Companies) {
+    Write-Host "    $($company.Code)  $($company.Name)" -ForegroundColor White
+    Write-Host "        QWC: $qwcTargetDir\$($company.Id).qwc" -ForegroundColor Gray
+    Write-Host "        User: $($company.User)  Password: $QbwcPassword" -ForegroundColor Gray
+}
 Write-Host ""
-Write-Host "  NEXT STEPS (manual):" -ForegroundColor Yellow
-Write-Host "    1. Open QuickBooks and log into the Ultra1Plus company file" -ForegroundColor White
-Write-Host "    2. Open QuickBooks Web Connector (Start Menu > QuickBooks > Web Connector)" -ForegroundColor White
+Write-Host "  NEXT STEPS (for each company):" -ForegroundColor Yellow
+Write-Host "    1. Open QuickBooks and log into the company file" -ForegroundColor White
+Write-Host "    2. Open QuickBooks Web Connector" -ForegroundColor White
 Write-Host "    3. Click 'Add an Application'" -ForegroundColor White
-Write-Host "    4. Browse to: $qwcPath" -ForegroundColor White
-Write-Host "    5. QuickBooks will ask to authorize - click 'Yes, always allow'" -ForegroundColor White
+Write-Host "    4. Browse to the company's .qwc file (listed above)" -ForegroundColor White
+Write-Host "    5. QB will ask to authorize — click 'Yes, always allow'" -ForegroundColor White
 Write-Host "    6. In QBWC, enter the password: $QbwcPassword" -ForegroundColor White
-Write-Host "    7. Check 'Auto-Run' and click 'Update Selected'" -ForegroundColor White
+Write-Host "    7. Repeat for all 5 companies" -ForegroundColor White
+Write-Host "    8. Check 'Auto-Run' and click 'Update Selected'" -ForegroundColor White
 Write-Host ""
-Write-Host "  The connector will sync every 15 minutes automatically." -ForegroundColor Gray
-Write-Host "  Check the dashboard at http://YOUR_MAC_IP:3005 to see live data." -ForegroundColor Gray
+Write-Host "  VERIFY:" -ForegroundColor Yellow
+Write-Host "    Browse to https://$($serverHostname):$ConnectorPort/diagnostics" -ForegroundColor White
+Write-Host "    Test auth: https://$($serverHostname):$ConnectorPort/test-auth/u1p_sync_ultrachem/$QbwcPassword" -ForegroundColor White
+Write-Host ""
+Write-Host "  Each company syncs independently every 15 minutes." -ForegroundColor Gray
 Write-Host ""

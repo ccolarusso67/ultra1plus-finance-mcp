@@ -10,12 +10,15 @@ namespace U1PFinanceSync.Services.SyncJobs;
 public class InventorySyncJob : ISyncJob
 {
     public string Name => "inventory_sync";
+    public string CompanyId => _companyId;
 
     private readonly string _connectionString;
+    private readonly string _companyId;
 
-    public InventorySyncJob(string connectionString)
+    public InventorySyncJob(string connectionString, string companyId)
     {
         _connectionString = connectionString;
+        _companyId = companyId;
     }
 
     public List<string> GetQbXmlRequests()
@@ -60,12 +63,13 @@ public class InventorySyncJob : ISyncJob
 
             await using var cmd = new NpgsqlCommand(@"
                 INSERT INTO inventory_summary
-                    (item_id, sku, name, category, quantity_on_hand, quantity_on_sales_order,
+                    (company_id, item_id, sku, name, category, quantity_on_hand, quantity_on_sales_order,
                      quantity_available, reorder_point, avg_cost, last_cost, asset_value, snapshot_at)
-                VALUES (@itemId, @sku, @name, @category, @qoh, @qos, @available,
+                VALUES (@companyId, @itemId, @sku, @name, @category, @qoh, @qos, @available,
                     @reorder, @avgCost, @avgCost, @assetValue, NOW())
             ", conn);
 
+            cmd.Parameters.AddWithValue("companyId", _companyId);
             cmd.Parameters.AddWithValue("itemId", itemId);
             cmd.Parameters.AddWithValue("sku", (object?)sku ?? DBNull.Value);
             cmd.Parameters.AddWithValue("name", name);
@@ -85,9 +89,10 @@ public class InventorySyncJob : ISyncJob
             UPDATE sync_status SET
                 last_run_at = NOW(), last_success_at = NOW(),
                 records_synced = @count, status = 'success', error_message = NULL
-            WHERE job_name = 'inventory_sync'
+            WHERE company_id = @companyId AND job_name = 'inventory_sync'
         ", conn);
         statusCmd.Parameters.AddWithValue("count", recordCount);
+        statusCmd.Parameters.AddWithValue("companyId", _companyId);
         await statusCmd.ExecuteNonQueryAsync();
     }
 

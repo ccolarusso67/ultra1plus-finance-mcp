@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<QBWCXML>
+    <AppName>U1P Finance Sync - Maxilub</AppName>
+    <AppID></AppID>
+    <AppURL>https://localhost:8443/qbwc</AppURL>
+    <AppDescription>Syncs Maxilub financial data to the Finance MCP database</AppDescription>
+    <AppSupport>https://ultra1plus.com</AppSupport>
+    <UserName>u1p_sync_maxilub</UserName>
+    <OwnerID>{8bfdb690-1d75-4cf3-9b96-abfb782c4bd9}</OwnerID>
+    <FileID>{b4db489d-b31e-49e0-9b44-50bda2ac5668}</FileID>
+    <QBType>QBFS</QBType>
+    <Scheduler>
+        <RunEveryNMinutes>15</RunEveryNMinutes>
+    </Scheduler>
+    <IsReadOnly>true</IsReadOnly>
+</QBWCXML>

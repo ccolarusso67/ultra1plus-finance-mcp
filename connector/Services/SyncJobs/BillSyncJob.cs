@@ -10,12 +10,15 @@ namespace U1PFinanceSync.Services.SyncJobs;
 public class BillSyncJob : ISyncJob
 {
     public string Name => "bill_sync";
+    public string CompanyId => _companyId;
 
     private readonly string _connectionString;
+    private readonly string _companyId;
 
-    public BillSyncJob(string connectionString)
+    public BillSyncJob(string connectionString, string companyId)
     {
         _connectionString = connectionString;
+        _companyId = companyId;
     }
 
     public List<string> GetQbXmlRequests()
@@ -61,17 +64,18 @@ public class BillSyncJob : ISyncJob
             var memo = bill.Element("Memo")?.Value;
 
             await using var cmd = new NpgsqlCommand(@"
-                INSERT INTO bills (txn_id, vendor_id, vendor_name, ref_number, txn_date,
+                INSERT INTO bills (company_id, txn_id, vendor_id, vendor_name, ref_number, txn_date,
                     due_date, amount, balance_remaining, is_paid, memo, last_synced_at)
-                VALUES (@txnId, @vendorId, @vendorName, @ref, @txnDate::date,
+                VALUES (@companyId, @txnId, @vendorId, @vendorName, @ref, @txnDate::date,
                     @dueDate::date, @amount, @balance, @isPaid, @memo, NOW())
-                ON CONFLICT (txn_id) DO UPDATE SET
+                ON CONFLICT (company_id, txn_id) DO UPDATE SET
                     vendor_name = EXCLUDED.vendor_name,
                     balance_remaining = EXCLUDED.balance_remaining,
                     is_paid = EXCLUDED.is_paid,
                     last_synced_at = NOW()
             ", conn);
 
+            cmd.Parameters.AddWithValue("companyId", _companyId);
             cmd.Parameters.AddWithValue("txnId", txnId);
             cmd.Parameters.AddWithValue("vendorId", (object?)vendorId ?? DBNull.Value);
             cmd.Parameters.AddWithValue("vendorName", vendorName);
@@ -91,9 +95,10 @@ public class BillSyncJob : ISyncJob
             UPDATE sync_status SET
                 last_run_at = NOW(), last_success_at = NOW(),
                 records_synced = @count, status = 'success', error_message = NULL
-            WHERE job_name = 'bill_sync'
+            WHERE company_id = @companyId AND job_name = 'bill_sync'
         ", conn);
         statusCmd.Parameters.AddWithValue("count", recordCount);
+        statusCmd.Parameters.AddWithValue("companyId", _companyId);
         await statusCmd.ExecuteNonQueryAsync();
     }
 

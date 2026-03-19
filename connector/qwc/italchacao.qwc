@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<QBWCXML>
+    <AppName>U1P Finance Sync - Italchacao Services</AppName>
+    <AppID></AppID>
+    <AppURL>https://localhost:8443/qbwc</AppURL>
+    <AppDescription>Syncs Italchacao Services financial data to the Finance MCP database</AppDescription>
+    <AppSupport>https://ultra1plus.com</AppSupport>
+    <UserName>u1p_sync_italchacao</UserName>
+    <OwnerID>{9f24e16a-e952-472c-accd-312ff4e940ed}</OwnerID>
+    <FileID>{9765812a-3f18-4e46-8b66-c4d75455583b}</FileID>
+    <QBType>QBFS</QBType>
+    <Scheduler>
+        <RunEveryNMinutes>15</RunEveryNMinutes>
+    </Scheduler>
+    <IsReadOnly>true</IsReadOnly>
+</QBWCXML>

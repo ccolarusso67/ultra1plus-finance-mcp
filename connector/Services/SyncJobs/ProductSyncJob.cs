@@ -11,17 +11,19 @@ namespace U1PFinanceSync.Services.SyncJobs;
 public class ProductSyncJob : ISyncJob
 {
     public string Name => "product_sync";
+    public string CompanyId => _companyId;
 
     private readonly string _connectionString;
+    private readonly string _companyId;
 
-    public ProductSyncJob(string connectionString)
+    public ProductSyncJob(string connectionString, string companyId)
     {
         _connectionString = connectionString;
+        _companyId = companyId;
     }
 
     public List<string> GetQbXmlRequests()
     {
-        // Query all item types: inventory, non-inventory, service
         return new List<string>
         {
             @"<?xml version=""1.0"" encoding=""utf-8""?>
@@ -41,7 +43,6 @@ public class ProductSyncJob : ISyncJob
     {
         var doc = XDocument.Parse(responseXml);
 
-        // QB returns different element names per item type
         var itemTypes = new[] {
             "ItemInventoryRet", "ItemNonInventoryRet", "ItemServiceRet",
             "ItemInventoryAssemblyRet", "ItemOtherChargeRet"
@@ -69,11 +70,11 @@ public class ProductSyncJob : ISyncJob
                 var isActive = item.Element("IsActive")?.Value?.ToLower() != "false";
 
                 await using var cmd = new NpgsqlCommand(@"
-                    INSERT INTO product_catalog (item_id, sku, name, full_name, category, subcategory,
+                    INSERT INTO product_catalog (company_id, item_id, sku, name, full_name, category, subcategory,
                         description, unit_of_measure, list_price, avg_cost, is_active, updated_at)
-                    VALUES (@id, @sku, @name, @fullName, @category, @sub, @desc, @uom,
+                    VALUES (@companyId, @id, @sku, @name, @fullName, @category, @sub, @desc, @uom,
                         @price, @cost, @active, NOW())
-                    ON CONFLICT (item_id) DO UPDATE SET
+                    ON CONFLICT (company_id, item_id) DO UPDATE SET
                         sku = EXCLUDED.sku,
                         name = EXCLUDED.name,
                         full_name = EXCLUDED.full_name,
@@ -87,6 +88,7 @@ public class ProductSyncJob : ISyncJob
                         updated_at = NOW()
                 ", conn);
 
+                cmd.Parameters.AddWithValue("companyId", _companyId);
                 cmd.Parameters.AddWithValue("id", itemId);
                 cmd.Parameters.AddWithValue("sku", sku);
                 cmd.Parameters.AddWithValue("name", name);
@@ -104,24 +106,27 @@ public class ProductSyncJob : ISyncJob
             }
         }
 
-        // Backfill invoice_lines.cost from product_catalog.avg_cost
-        // where cost is still 0 (not yet populated)
+        // Backfill invoice_lines.cost from product_catalog.avg_cost (same company only)
         await using var backfillCmd = new NpgsqlCommand(@"
             UPDATE invoice_lines il SET cost = pc.avg_cost
             FROM product_catalog pc
-            WHERE il.item_id = pc.item_id
+            WHERE il.company_id = @companyId
+              AND il.company_id = pc.company_id
+              AND il.item_id = pc.item_id
               AND il.cost = 0
               AND pc.avg_cost > 0
         ", conn);
+        backfillCmd.Parameters.AddWithValue("companyId", _companyId);
         await backfillCmd.ExecuteNonQueryAsync();
 
         await using var statusCmd = new NpgsqlCommand(@"
             UPDATE sync_status SET
                 last_run_at = NOW(), last_success_at = NOW(),
                 records_synced = @count, status = 'success', error_message = NULL
-            WHERE job_name = 'product_sync'
+            WHERE company_id = @companyId AND job_name = 'product_sync'
         ", conn);
         statusCmd.Parameters.AddWithValue("count", recordCount);
+        statusCmd.Parameters.AddWithValue("companyId", _companyId);
         await statusCmd.ExecuteNonQueryAsync();
     }
 

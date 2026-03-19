@@ -10,12 +10,15 @@ namespace U1PFinanceSync.Services.SyncJobs;
 public class ArAgingSyncJob : ISyncJob
 {
     public string Name => "ar_aging_sync";
+    public string CompanyId => _companyId;
 
     private readonly string _connectionString;
+    private readonly string _companyId;
 
-    public ArAgingSyncJob(string connectionString)
+    public ArAgingSyncJob(string connectionString, string companyId)
     {
         _connectionString = connectionString;
+        _companyId = companyId;
     }
 
     public List<string> GetQbXmlRequests()
@@ -45,10 +48,6 @@ public class ArAgingSyncJob : ISyncJob
         await conn.OpenAsync();
 
         var recordCount = 0;
-
-        // Parse report rows — structure varies by QB version but typically:
-        // Each ReportData row has ColData elements matching the report columns.
-        // Column order for AR Aging: Customer, Current, 1-30, 31-60, 61-90, 91+, Total
         var rows = reportRet.Descendants("DataRow");
 
         foreach (var row in rows)
@@ -66,19 +65,21 @@ public class ArAgingSyncJob : ISyncJob
             var days91Plus = ParseDecimal(cols[5].Attribute("value")?.Value);
             var total = ParseDecimal(cols[6].Attribute("value")?.Value);
 
-            // Look up customer_id by name
+            // Look up customer_id by name (scoped to this company)
             await using var lookupCmd = new NpgsqlCommand(
-                "SELECT customer_id FROM customers WHERE full_name = @name LIMIT 1", conn);
+                "SELECT customer_id FROM customers WHERE company_id = @companyId AND full_name = @name LIMIT 1", conn);
+            lookupCmd.Parameters.AddWithValue("companyId", _companyId);
             lookupCmd.Parameters.AddWithValue("name", customerName);
             var customerId = (string?)await lookupCmd.ExecuteScalarAsync();
 
             await using var cmd = new NpgsqlCommand(@"
                 INSERT INTO ar_aging_summary
-                    (customer_id, customer_name, current_bucket, days_1_30, days_31_60,
+                    (company_id, customer_id, customer_name, current_bucket, days_1_30, days_31_60,
                      days_61_90, days_91_plus, total_open_balance, snapshot_at)
-                VALUES (@custId, @name, @current, @d1, @d2, @d3, @d4, @total, NOW())
+                VALUES (@companyId, @custId, @name, @current, @d1, @d2, @d3, @d4, @total, NOW())
             ", conn);
 
+            cmd.Parameters.AddWithValue("companyId", _companyId);
             cmd.Parameters.AddWithValue("custId", (object?)customerId ?? DBNull.Value);
             cmd.Parameters.AddWithValue("name", customerName);
             cmd.Parameters.AddWithValue("current", current);
@@ -92,14 +93,14 @@ public class ArAgingSyncJob : ISyncJob
             recordCount++;
         }
 
-        // Update sync status
         await using var statusCmd = new NpgsqlCommand(@"
             UPDATE sync_status SET
                 last_run_at = NOW(), last_success_at = NOW(),
                 records_synced = @count, status = 'success', error_message = NULL
-            WHERE job_name = 'ar_aging_sync'
+            WHERE company_id = @companyId AND job_name = 'ar_aging_sync'
         ", conn);
         statusCmd.Parameters.AddWithValue("count", recordCount);
+        statusCmd.Parameters.AddWithValue("companyId", _companyId);
         await statusCmd.ExecuteNonQueryAsync();
     }
 

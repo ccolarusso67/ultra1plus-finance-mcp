@@ -9,29 +9,34 @@ namespace U1PFinanceSync.Services;
 public interface ISyncJob
 {
     string Name { get; }
+    string CompanyId { get; }
     List<string> GetQbXmlRequests();
     Task ProcessResponseAsync(string responseXml);
 }
 
 /// <summary>
 /// Manages sync job scheduling and tracks which jobs need to run.
+/// Supports multiple companies with independent job queues and schedules.
 /// </summary>
 public class SyncJobManager
 {
     private readonly ILogger<SyncJobManager> _logger;
-    private readonly IConfiguration _config;
+    private readonly CompanyRegistry _companyRegistry;
     private readonly string _connectionString;
 
-    // Registered sync jobs
-    private readonly Dictionary<string, ISyncJob> _jobs = new();
+    // Per-company job registries: companyId → (jobName → ISyncJob)
+    private readonly Dictionary<string, Dictionary<string, ISyncJob>> _jobsByCompany = new();
 
-    // Track when each job last ran
-    private readonly Dictionary<string, DateTime> _lastRunTimes = new();
+    // Per-company last-run tracking: companyId → (jobName → lastRunUtc)
+    private readonly Dictionary<string, Dictionary<string, DateTime>> _lastRunTimesByCompany = new();
 
-    public SyncJobManager(ILogger<SyncJobManager> logger, IConfiguration config)
+    public SyncJobManager(
+        ILogger<SyncJobManager> logger,
+        IConfiguration config,
+        CompanyRegistry companyRegistry)
     {
         _logger = logger;
-        _config = config;
+        _companyRegistry = companyRegistry;
         _connectionString = config.GetConnectionString("FinanceDb")
             ?? throw new InvalidOperationException("FinanceDb connection string not configured");
 
@@ -40,54 +45,83 @@ public class SyncJobManager
 
     private void RegisterJobs()
     {
-        // Customers must sync first (other jobs reference customer_id via FK)
-        _jobs["customer_sync"] = new CustomerSyncJob(_connectionString);
+        foreach (var company in _companyRegistry.GetAll())
+        {
+            var companyId = company.CompanyId;
+            var jobs = new Dictionary<string, ISyncJob>();
 
-        // Core transaction sync
-        _jobs["invoice_sync"] = new InvoiceSyncJob(_connectionString);
-        _jobs["payment_sync"] = new PaymentSyncJob(_connectionString);
-        _jobs["bill_sync"] = new BillSyncJob(_connectionString);
-        _jobs["sales_order_sync"] = new SalesOrderSyncJob(_connectionString);
+            // Customers must sync first (other jobs reference customer_id via FK)
+            jobs["customer_sync"] = new CustomerSyncJob(_connectionString, companyId);
 
-        // Product & pricing sync
-        _jobs["product_sync"] = new ProductSyncJob(_connectionString);
-        _jobs["price_level_sync"] = new PriceLevelSyncJob(_connectionString);
+            // Core transaction sync
+            jobs["invoice_sync"] = new InvoiceSyncJob(_connectionString, companyId);
+            jobs["payment_sync"] = new PaymentSyncJob(_connectionString, companyId);
+            jobs["bill_sync"] = new BillSyncJob(_connectionString, companyId);
+            jobs["sales_order_sync"] = new SalesOrderSyncJob(_connectionString, companyId);
 
-        // Report-based sync (snapshots)
-        _jobs["ar_aging_sync"] = new ArAgingSyncJob(_connectionString);
-        _jobs["ap_aging_sync"] = new ApAgingSyncJob(_connectionString);
-        _jobs["inventory_sync"] = new InventorySyncJob(_connectionString);
-        _jobs["pnl_sync"] = new PnlSyncJob(_connectionString);
-        _jobs["sales_by_customer_sync"] = new SalesByCustomerSyncJob(_connectionString);
+            // Product & pricing sync
+            jobs["product_sync"] = new ProductSyncJob(_connectionString, companyId);
+            jobs["price_level_sync"] = new PriceLevelSyncJob(_connectionString, companyId);
 
-        _logger.LogInformation("Registered {Count} sync jobs", _jobs.Count);
+            // Report-based sync (snapshots)
+            jobs["ar_aging_sync"] = new ArAgingSyncJob(_connectionString, companyId);
+            jobs["ap_aging_sync"] = new ApAgingSyncJob(_connectionString, companyId);
+            jobs["inventory_sync"] = new InventorySyncJob(_connectionString, companyId);
+            jobs["pnl_sync"] = new PnlSyncJob(_connectionString, companyId);
+            jobs["sales_by_customer_sync"] = new SalesByCustomerSyncJob(_connectionString, companyId);
+
+            _jobsByCompany[companyId] = jobs;
+            _lastRunTimesByCompany[companyId] = new Dictionary<string, DateTime>();
+
+            _logger.LogInformation("Registered {Count} sync jobs for company {Company}",
+                jobs.Count, companyId);
+        }
     }
 
     /// <summary>
-    /// Returns jobs that are due to run based on their cron schedule.
+    /// Returns jobs that are due to run for a specific company based on its cron schedule.
     /// Called by QBWC authenticate to determine what work needs doing.
     /// </summary>
-    public List<ISyncJob> GetPendingJobs()
+    public List<ISyncJob> GetPendingJobs(string companyId)
     {
-        var pending = new List<ISyncJob>();
-        var schedules = _config.GetSection("SyncSchedule");
-
-        foreach (var (name, job) in _jobs)
+        if (!_jobsByCompany.TryGetValue(companyId, out var jobs))
         {
-            var cronExpr = schedules[ScheduleKeyForJob(name)];
-            if (cronExpr == null) continue;
+            _logger.LogWarning("No jobs registered for company {Company}", companyId);
+            return new List<ISyncJob>();
+        }
 
-            var lastRun = _lastRunTimes.GetValueOrDefault(name, DateTime.MinValue);
+        var company = _companyRegistry.GetByCompanyId(companyId);
+        if (company == null) return new List<ISyncJob>();
+
+        var lastRunTimes = _lastRunTimesByCompany[companyId];
+        var pending = new List<ISyncJob>();
+        var now = DateTime.UtcNow;
+
+        // Customer sync must run first if pending (other jobs reference customer_id FK)
+        var orderedJobs = jobs.OrderBy(kvp => kvp.Key == "customer_sync" ? 0 : 1);
+
+        foreach (var (name, job) in orderedJobs)
+        {
+            var scheduleKey = ScheduleKeyForJob(name);
+            if (!company.SyncSchedule.TryGetValue(scheduleKey, out var cronExpr))
+                continue;
+
+            var lastRun = lastRunTimes.GetValueOrDefault(name, DateTime.UtcNow.AddDays(-1));
             var cron = Cronos.CronExpression.Parse(cronExpr);
-            var nextRun = cron.GetNextOccurrence(lastRun, TimeZoneInfo.Local);
+            var nextRun = cron.GetNextOccurrence(lastRun, TimeZoneInfo.Utc);
 
             if (nextRun.HasValue && nextRun.Value <= DateTime.UtcNow)
             {
                 pending.Add(job);
-                _lastRunTimes[name] = DateTime.UtcNow;
+                lastRunTimes[name] = now;
+                _logger.LogInformation(
+                    "Company {Company}: Job {Job} is due (last ran: {LastRun}, next was: {NextRun})",
+                    companyId, name, lastRun, nextRun.Value);
             }
         }
 
+        _logger.LogInformation("Company {Company}: {Count} of {Total} jobs pending",
+            companyId, pending.Count, jobs.Count);
         return pending;
     }
 
@@ -110,7 +144,8 @@ public class SyncJobManager
 }
 
 /// <summary>
-/// Background service that triggers QBWC to poll on schedule.
+/// Background service that keeps the host alive.
+/// Actual scheduling is driven by QBWC polling (RunEveryNMinutes in .qwc).
 /// </summary>
 public class SyncScheduler : BackgroundService
 {
@@ -124,10 +159,6 @@ public class SyncScheduler : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("Sync scheduler started. QBWC will poll for work.");
-
-        // The actual scheduling is driven by QBWC polling (RunEveryNMinutes in .qwc).
-        // This service just keeps the host alive and could handle additional
-        // non-QBWC background tasks if needed.
 
         while (!stoppingToken.IsCancellationRequested)
         {

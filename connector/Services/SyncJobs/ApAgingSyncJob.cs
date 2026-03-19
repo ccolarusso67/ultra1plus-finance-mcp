@@ -10,12 +10,15 @@ namespace U1PFinanceSync.Services.SyncJobs;
 public class ApAgingSyncJob : ISyncJob
 {
     public string Name => "ap_aging_sync";
+    public string CompanyId => _companyId;
 
     private readonly string _connectionString;
+    private readonly string _companyId;
 
-    public ApAgingSyncJob(string connectionString)
+    public ApAgingSyncJob(string connectionString, string companyId)
     {
         _connectionString = connectionString;
+        _companyId = companyId;
     }
 
     public List<string> GetQbXmlRequests()
@@ -45,8 +48,6 @@ public class ApAgingSyncJob : ISyncJob
         await conn.OpenAsync();
 
         var recordCount = 0;
-
-        // Column order for AP Aging: Vendor, Current, 1-30, 31-60, 61-90, 91+, Total
         var rows = reportRet.Descendants("DataRow");
 
         foreach (var row in rows)
@@ -66,11 +67,12 @@ public class ApAgingSyncJob : ISyncJob
 
             await using var cmd = new NpgsqlCommand(@"
                 INSERT INTO ap_aging_summary
-                    (vendor_name, current_bucket, days_1_30, days_31_60,
+                    (company_id, vendor_name, current_bucket, days_1_30, days_31_60,
                      days_61_90, days_91_plus, total_open_balance, snapshot_at)
-                VALUES (@name, @current, @d1, @d2, @d3, @d4, @total, NOW())
+                VALUES (@companyId, @name, @current, @d1, @d2, @d3, @d4, @total, NOW())
             ", conn);
 
+            cmd.Parameters.AddWithValue("companyId", _companyId);
             cmd.Parameters.AddWithValue("name", vendorName);
             cmd.Parameters.AddWithValue("current", current);
             cmd.Parameters.AddWithValue("d1", days1_30);
@@ -87,9 +89,10 @@ public class ApAgingSyncJob : ISyncJob
             UPDATE sync_status SET
                 last_run_at = NOW(), last_success_at = NOW(),
                 records_synced = @count, status = 'success', error_message = NULL
-            WHERE job_name = 'ap_aging_sync'
+            WHERE company_id = @companyId AND job_name = 'ap_aging_sync'
         ", conn);
         statusCmd.Parameters.AddWithValue("count", recordCount);
+        statusCmd.Parameters.AddWithValue("companyId", _companyId);
         await statusCmd.ExecuteNonQueryAsync();
     }
 

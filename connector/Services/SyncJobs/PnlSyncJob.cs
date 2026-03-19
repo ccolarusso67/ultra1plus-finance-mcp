@@ -11,17 +11,19 @@ namespace U1PFinanceSync.Services.SyncJobs;
 public class PnlSyncJob : ISyncJob
 {
     public string Name => "pnl_sync";
+    public string CompanyId => _companyId;
 
     private readonly string _connectionString;
+    private readonly string _companyId;
 
-    public PnlSyncJob(string connectionString)
+    public PnlSyncJob(string connectionString, string companyId)
     {
         _connectionString = connectionString;
+        _companyId = companyId;
     }
 
     public List<string> GetQbXmlRequests()
     {
-        // Request P&L for each month of the current year
         var requests = new List<string>();
         var now = DateTime.UtcNow;
         var yearStart = new DateTime(now.Year, 1, 1);
@@ -61,28 +63,21 @@ public class PnlSyncJob : ISyncJob
         await using var conn = new NpgsqlConnection(_connectionString);
         await conn.OpenAsync();
 
-        // Extract the report period from the response
         var reportPeriod = reportRet.Element("ReportPeriod");
         var fromDate = reportPeriod?.Element("FromReportDate")?.Value;
         if (fromDate == null) return;
 
-        // Parse the month from the period start
-        var month = DateTime.Parse(fromDate);
+        if (!DateTime.TryParse(fromDate, out var month)) return;
         var monthStart = new DateTime(month.Year, month.Month, 1);
 
-        // Parse report rows to extract key P&L figures
         decimal income = 0, cogs = 0, grossProfit = 0;
         decimal operatingExpenses = 0, otherIncome = 0, otherExpenses = 0, netIncome = 0;
 
-        var rows = reportRet.Descendants("DataRow").ToList();
         var subtotalRows = reportRet.Descendants("SubtotalRow").ToList();
         var totalRows = reportRet.Descendants("TotalRow").ToList();
 
-        // QB P&L report structure uses section labels to categorize rows.
-        // We look for key summary rows by their RowData label.
         foreach (var row in subtotalRows.Concat(totalRows))
         {
-            var rowData = row.Element("RowData") ?? row.Elements("ColData").FirstOrDefault()?.Parent;
             var cols = row.Elements("ColData").ToList();
             if (cols.Count < 2) continue;
 
@@ -105,15 +100,14 @@ public class PnlSyncJob : ISyncJob
                 netIncome = value;
         }
 
-        // If gross profit wasn't explicitly reported, calculate it
         if (grossProfit == 0 && income > 0)
             grossProfit = income - cogs;
 
         await using var cmd = new NpgsqlCommand(@"
-            INSERT INTO monthly_pnl (month, report_basis, income, cogs, gross_profit,
+            INSERT INTO monthly_pnl (company_id, month, report_basis, income, cogs, gross_profit,
                 operating_expenses, other_income, other_expenses, net_income, snapshot_at)
-            VALUES (@month, 'accrual', @income, @cogs, @gross, @opex, @otherInc, @otherExp, @net, NOW())
-            ON CONFLICT (month, report_basis) DO UPDATE SET
+            VALUES (@companyId, @month::date, 'accrual', @income, @cogs, @gross, @opex, @otherInc, @otherExp, @net, NOW())
+            ON CONFLICT (company_id, month, report_basis) DO UPDATE SET
                 income = EXCLUDED.income,
                 cogs = EXCLUDED.cogs,
                 gross_profit = EXCLUDED.gross_profit,
@@ -124,7 +118,8 @@ public class PnlSyncJob : ISyncJob
                 snapshot_at = NOW()
         ", conn);
 
-        cmd.Parameters.AddWithValue("month", monthStart);
+        cmd.Parameters.AddWithValue("companyId", _companyId);
+        cmd.Parameters.AddWithValue("month", monthStart.ToString("yyyy-MM-dd"));
         cmd.Parameters.AddWithValue("income", income);
         cmd.Parameters.AddWithValue("cogs", cogs);
         cmd.Parameters.AddWithValue("gross", grossProfit);
@@ -139,8 +134,9 @@ public class PnlSyncJob : ISyncJob
             UPDATE sync_status SET
                 last_run_at = NOW(), last_success_at = NOW(),
                 records_synced = 1, status = 'success', error_message = NULL
-            WHERE job_name = 'pnl_sync'
+            WHERE company_id = @companyId AND job_name = 'pnl_sync'
         ", conn);
+        statusCmd.Parameters.AddWithValue("companyId", _companyId);
         await statusCmd.ExecuteNonQueryAsync();
     }
 
