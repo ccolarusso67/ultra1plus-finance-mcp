@@ -24,10 +24,10 @@ public class SyncJobManager
     private readonly CompanyRegistry _companyRegistry;
     private readonly string _connectionString;
 
-    // Per-company job registries: companyId → (jobName → ISyncJob)
+    // Per-company job registries: companyId â (jobName â ISyncJob)
     private readonly Dictionary<string, Dictionary<string, ISyncJob>> _jobsByCompany = new();
 
-    // Per-company last-run tracking: companyId → (jobName → lastRunUtc)
+    // Per-company last-run tracking: companyId â (jobName â lastRunUtc)
     private readonly Dictionary<string, Dictionary<string, DateTime>> _lastRunTimesByCompany = new();
 
     public SyncJobManager(
@@ -61,7 +61,9 @@ public class SyncJobManager
 
             // Product & pricing sync
             jobs["product_sync"] = new ProductSyncJob(_connectionString, companyId);
-            jobs["price_level_sync"] = new PriceLevelSyncJob(_connectionString, companyId);
+            // price_level_sync intentionally disabled — QuickBooks has Price Rules
+            // enabled in this company file, which makes Price Levels unavailable.
+            // jobs["price_level_sync"] = new PriceLevelSyncJob(_connectionString, companyId);
 
             // Report-based sync (snapshots)
             jobs["ar_aging_sync"] = new ArAgingSyncJob(_connectionString, companyId);
