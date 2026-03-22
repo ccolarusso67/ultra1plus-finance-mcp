@@ -6,23 +6,61 @@ namespace U1PFinanceSync.Services.SyncJobs;
 /// <summary>
 /// Syncs invoices and invoice line items from QuickBooks Desktop.
 /// Uses InvoiceQuery qbXML request â returns full invoice objects with line items.
+///
+/// Supports two modes:
+///   - Incremental (default): queries last 7 days by ModifiedDateRangeFilter
+///   - Full backfill: generates one request per year using TxnDateRangeFilter,
+///     batching by transaction date to stay within QB response limits.
+///     Set Backfill:Enabled = true in appsettings.json to activate.
 /// </summary>
 public class InvoiceSyncJob : ISyncJob
 {
     public string Name => "invoice_sync";
-    public string CompanyId => _companyId;
 
     private readonly string _connectionString;
-    private readonly string _companyId;
+    private readonly bool _fullBackfill;
+    private readonly int _backfillStartYear;
+    private int _totalRecordsSynced;
 
-    public InvoiceSyncJob(string connectionString, string companyId)
+    public InvoiceSyncJob(string connectionString, bool fullBackfill = false, int backfillStartYear = 2020)
     {
         _connectionString = connectionString;
-        _companyId = companyId;
+        _fullBackfill = fullBackfill;
+        _backfillStartYear = backfillStartYear;
     }
 
     public List<string> GetQbXmlRequests()
     {
+        if (_fullBackfill)
+        {
+            // Full historical backfill: one request per year using TxnDateRangeFilter.
+            // This keeps each response within QB's result limits without requiring
+            // iterator-based pagination, and works with the existing QBWC session flow.
+            var requests = new List<string>();
+            var currentYear = DateTime.UtcNow.Year;
+
+            for (var year = _backfillStartYear; year <= currentYear; year++)
+            {
+                requests.Add($@"<?xml version=""1.0"" encoding=""utf-8""?>
+            <?qbxml version=""16.0""?>
+            <QBXML>
+                <QBXMLMsgsRq onError=""continueOnError"">
+                    <InvoiceQueryRq>
+                        <TxnDateRangeFilter>
+                            <FromTxnDate>{year}-01-01</FromTxnDate>
+                            <ToTxnDate>{year}-12-31</ToTxnDate>
+                        </TxnDateRangeFilter>
+                        <IncludeLineItems>true</IncludeLineItems>
+                        <OwnerID>0</OwnerID>
+                    </InvoiceQueryRq>
+                </QBXMLMsgsRq>
+            </QBXML>");
+            }
+
+            return requests;
+        }
+
+        // Incremental sync: last 7 days by modification date
         return new List<string>
         {
             @"<?xml version=""1.0"" encoding=""utf-8""?>
@@ -31,7 +69,7 @@ public class InvoiceSyncJob : ISyncJob
                 <QBXMLMsgsRq onError=""continueOnError"">
                     <InvoiceQueryRq>
                         <ModifiedDateRangeFilter>
-                            <FromModifiedDate>" + new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc).ToString("yyyy-MM-ddTHH:mm:ss") // historical backfill + @"</FromModifiedDate>
+                            <FromModifiedDate>" + DateTime.UtcNow.AddDays(-7).ToString("yyyy-MM-ddTHH:mm:ss") + @"</FromModifiedDate>
                         </ModifiedDateRangeFilter>
                         <IncludeLineItems>true</IncludeLineItems>
                         <OwnerID>0</OwnerID>
@@ -48,6 +86,8 @@ public class InvoiceSyncJob : ISyncJob
 
         await using var conn = new NpgsqlConnection(_connectionString);
         await conn.OpenAsync();
+
+        var batchCount = 0;
 
         foreach (var inv in invoiceRets)
         {
@@ -66,18 +106,17 @@ public class InvoiceSyncJob : ISyncJob
 
             // Upsert invoice
             await using var cmd = new NpgsqlCommand(@"
-                INSERT INTO invoices (company_id, txn_id, ref_number, customer_id, txn_date, due_date,
+                INSERT INTO invoices (txn_id, ref_number, customer_id, txn_date, due_date,
                     ship_date, amount, balance_remaining, is_paid, terms, po_number, memo, last_synced_at)
-                VALUES (@companyId, @txnId, @refNumber, @customerId, @txnDate::date, @dueDate::date,
+                VALUES (@txnId, @refNumber, @customerId, @txnDate::date, @dueDate::date,
                     @shipDate::date, @amount, @balance, @isPaid, @terms, @po, @memo, NOW())
-                ON CONFLICT (company_id, txn_id) DO UPDATE SET
+                ON CONFLICT (txn_id) DO UPDATE SET
                     ref_number = EXCLUDED.ref_number,
                     balance_remaining = EXCLUDED.balance_remaining,
                     is_paid = EXCLUDED.is_paid,
                     last_synced_at = NOW()
             ", conn);
 
-            cmd.Parameters.AddWithValue("companyId", _companyId);
             cmd.Parameters.AddWithValue("txnId", txnId);
             cmd.Parameters.AddWithValue("refNumber", (object?)refNumber ?? DBNull.Value);
             cmd.Parameters.AddWithValue("customerId", (object?)customerId ?? DBNull.Value);
@@ -92,11 +131,11 @@ public class InvoiceSyncJob : ISyncJob
             cmd.Parameters.AddWithValue("memo", (object?)memo ?? DBNull.Value);
 
             await cmd.ExecuteNonQueryAsync();
+            batchCount++;
 
             // Delete existing line items for this invoice, then re-insert
             await using var delCmd = new NpgsqlCommand(
-                "DELETE FROM invoice_lines WHERE company_id = @companyId AND invoice_txn_id = @txnId", conn);
-            delCmd.Parameters.AddWithValue("companyId", _companyId);
+                "DELETE FROM invoice_lines WHERE invoice_txn_id = @txnId", conn);
             delCmd.Parameters.AddWithValue("txnId", txnId);
             await delCmd.ExecuteNonQueryAsync();
 
@@ -112,15 +151,18 @@ public class InvoiceSyncJob : ISyncJob
                 var unitPrice = decimal.Parse(line.Element("Rate")?.Value ?? "0");
                 var lineTotal = decimal.Parse(line.Element("Amount")?.Value ?? "0");
                 var className = line.Element("ClassRef")?.Element("FullName")?.Value;
+
+                // Cost comes from the item, not the invoice line.
+                // We'll join with product_catalog.avg_cost at query time,
+                // or populate during product sync.
                 var cost = 0m;
 
                 await using var lineCmd = new NpgsqlCommand(@"
-                    INSERT INTO invoice_lines (company_id, invoice_txn_id, line_number, item_id, sku,
+                    INSERT INTO invoice_lines (invoice_txn_id, line_number, item_id, sku,
                         description, quantity, unit_price, cost, line_total, class_name)
-                    VALUES (@companyId, @txnId, @lineNum, @itemId, @sku, @desc, @qty, @price, @cost, @total, @class)
+                    VALUES (@txnId, @lineNum, @itemId, @sku, @desc, @qty, @price, @cost, @total, @class)
                 ", conn);
 
-                lineCmd.Parameters.AddWithValue("companyId", _companyId);
                 lineCmd.Parameters.AddWithValue("txnId", txnId);
                 lineCmd.Parameters.AddWithValue("lineNum", lineNumber);
                 lineCmd.Parameters.AddWithValue("itemId", (object?)itemId ?? DBNull.Value);
@@ -136,15 +178,16 @@ public class InvoiceSyncJob : ISyncJob
             }
         }
 
-        // Update sync status
+        _totalRecordsSynced += batchCount;
+
+        // Update sync status with cumulative count (across all year batches)
         await using var statusCmd = new NpgsqlCommand(@"
             UPDATE sync_status SET
                 last_run_at = NOW(), last_success_at = NOW(),
                 records_synced = @count, status = 'success', error_message = NULL
-            WHERE company_id = @companyId AND job_name = 'invoice_sync'
+            WHERE job_name = 'invoice_sync'
         ", conn);
-        statusCmd.Parameters.AddWithValue("count", invoiceRets.Count());
-        statusCmd.Parameters.AddWithValue("companyId", _companyId);
+        statusCmd.Parameters.AddWithValue("count", _totalRecordsSynced);
         await statusCmd.ExecuteNonQueryAsync();
     }
 }
