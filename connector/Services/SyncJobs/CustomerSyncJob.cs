@@ -5,7 +5,7 @@ namespace U1PFinanceSync.Services.SyncJobs;
 
 /// <summary>
 /// Syncs customer records from QuickBooks Desktop.
-/// Uses CustomerQuery qbXML request — returns full customer objects.
+/// Uses CustomerQuery qbXML request â returns full customer objects.
 /// </summary>
 public class CustomerSyncJob : ISyncJob
 {
