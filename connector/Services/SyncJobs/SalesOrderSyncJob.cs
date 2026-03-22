@@ -6,23 +6,55 @@ namespace U1PFinanceSync.Services.SyncJobs;
 /// <summary>
 /// Syncs sales orders from QuickBooks Desktop.
 /// Uses SalesOrderQuery qbXML request â returns open/modified sales orders.
+///
+/// Supports two modes:
+///   - Incremental (default): queries last 7 days by ModifiedDateRangeFilter
+///   - Full backfill: generates one request per year using TxnDateRangeFilter.
+///     Set Backfill:Enabled = true in appsettings.json to activate.
 /// </summary>
 public class SalesOrderSyncJob : ISyncJob
 {
     public string Name => "sales_order_sync";
-    public string CompanyId => _companyId;
 
     private readonly string _connectionString;
-    private readonly string _companyId;
+    private readonly bool _fullBackfill;
+    private readonly int _backfillStartYear;
+    private int _totalRecordsSynced;
 
-    public SalesOrderSyncJob(string connectionString, string companyId)
+    public SalesOrderSyncJob(string connectionString, bool fullBackfill = false, int backfillStartYear = 2020)
     {
         _connectionString = connectionString;
-        _companyId = companyId;
+        _fullBackfill = fullBackfill;
+        _backfillStartYear = backfillStartYear;
     }
 
     public List<string> GetQbXmlRequests()
     {
+        if (_fullBackfill)
+        {
+            var requests = new List<string>();
+            var currentYear = DateTime.UtcNow.Year;
+
+            for (var year = _backfillStartYear; year <= currentYear; year++)
+            {
+                requests.Add($@"<?xml version=""1.0"" encoding=""utf-8""?>
+            <?qbxml version=""16.0""?>
+            <QBXML>
+                <QBXMLMsgsRq onError=""continueOnError"">
+                    <SalesOrderQueryRq>
+                        <TxnDateRangeFilter>
+                            <FromTxnDate>{year}-01-01</FromTxnDate>
+                            <ToTxnDate>{year}-12-31</ToTxnDate>
+                        </TxnDateRangeFilter>
+                        <OwnerID>0</OwnerID>
+                    </SalesOrderQueryRq>
+                </QBXMLMsgsRq>
+            </QBXML>");
+            }
+
+            return requests;
+        }
+
         return new List<string>
         {
             @"<?xml version=""1.0"" encoding=""utf-8""?>
@@ -31,7 +63,7 @@ public class SalesOrderSyncJob : ISyncJob
                 <QBXMLMsgsRq onError=""continueOnError"">
                     <SalesOrderQueryRq>
                         <ModifiedDateRangeFilter>
-                            <FromModifiedDate>" + new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc).ToString("yyyy-MM-ddTHH:mm:ss") // historical backfill + @"</FromModifiedDate>
+                            <FromModifiedDate>" + DateTime.UtcNow.AddDays(-7).ToString("yyyy-MM-ddTHH:mm:ss") + @"</FromModifiedDate>
                         </ModifiedDateRangeFilter>
                         <OwnerID>0</OwnerID>
                     </SalesOrderQueryRq>
@@ -63,11 +95,11 @@ public class SalesOrderSyncJob : ISyncJob
             var memo = so.Element("Memo")?.Value;
 
             await using var cmd = new NpgsqlCommand(@"
-                INSERT INTO sales_orders (company_id, txn_id, ref_number, customer_id, txn_date, ship_date,
+                INSERT INTO sales_orders (txn_id, ref_number, customer_id, txn_date, ship_date,
                     amount, is_fulfilled, is_closed, memo, last_synced_at)
-                VALUES (@companyId, @txnId, @ref, @custId, @txnDate::date, @shipDate::date,
+                VALUES (@txnId, @ref, @custId, @txnDate::date, @shipDate::date,
                     @amount, @fulfilled, @closed, @memo, NOW())
-                ON CONFLICT (company_id, txn_id) DO UPDATE SET
+                ON CONFLICT (txn_id) DO UPDATE SET
                     ref_number = EXCLUDED.ref_number,
                     ship_date = EXCLUDED.ship_date,
                     amount = EXCLUDED.amount,
@@ -76,7 +108,6 @@ public class SalesOrderSyncJob : ISyncJob
                     last_synced_at = NOW()
             ", conn);
 
-            cmd.Parameters.AddWithValue("companyId", _companyId);
             cmd.Parameters.AddWithValue("txnId", txnId);
             cmd.Parameters.AddWithValue("ref", (object?)refNumber ?? DBNull.Value);
             cmd.Parameters.AddWithValue("custId", (object?)customerId ?? DBNull.Value);
@@ -91,14 +122,15 @@ public class SalesOrderSyncJob : ISyncJob
             recordCount++;
         }
 
+        _totalRecordsSynced += recordCount;
+
         await using var statusCmd = new NpgsqlCommand(@"
             UPDATE sync_status SET
                 last_run_at = NOW(), last_success_at = NOW(),
                 records_synced = @count, status = 'success', error_message = NULL
-            WHERE company_id = @companyId AND job_name = 'sales_order_sync'
+            WHERE job_name = 'sales_order_sync'
         ", conn);
-        statusCmd.Parameters.AddWithValue("count", recordCount);
-        statusCmd.Parameters.AddWithValue("companyId", _companyId);
+        statusCmd.Parameters.AddWithValue("count", _totalRecordsSynced);
         await statusCmd.ExecuteNonQueryAsync();
     }
 
