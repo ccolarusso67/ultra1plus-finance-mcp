@@ -5,7 +5,7 @@ namespace U1PFinanceSync.Services.SyncJobs;
 
 /// <summary>
 /// Syncs sales orders from QuickBooks Desktop.
-/// Uses SalesOrderQuery qbXML request — returns open/modified sales orders.
+/// Uses SalesOrderQuery qbXML request â returns open/modified sales orders.
 /// </summary>
 public class SalesOrderSyncJob : ISyncJob
 {
@@ -31,7 +31,7 @@ public class SalesOrderSyncJob : ISyncJob
                 <QBXMLMsgsRq onError=""continueOnError"">
                     <SalesOrderQueryRq>
                         <ModifiedDateRangeFilter>
-                            <FromModifiedDate>" + DateTime.UtcNow.AddDays(-7).ToString("yyyy-MM-ddTHH:mm:ss") + @"</FromModifiedDate>
+                            <FromModifiedDate>" + new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc).ToString("yyyy-MM-ddTHH:mm:ss") // historical backfill + @"</FromModifiedDate>
                         </ModifiedDateRangeFilter>
                         <OwnerID>0</OwnerID>
                     </SalesOrderQueryRq>
