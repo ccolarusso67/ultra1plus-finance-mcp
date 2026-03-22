@@ -6,23 +6,55 @@ namespace U1PFinanceSync.Services.SyncJobs;
 /// <summary>
 /// Syncs bills (AP transactions) from QuickBooks Desktop.
 /// Uses BillQuery qbXML request.
+///
+/// Supports two modes:
+///   - Incremental (default): queries last 7 days by ModifiedDateRangeFilter
+///   - Full backfill: generates one request per year using TxnDateRangeFilter.
+///     Set Backfill:Enabled = true in appsettings.json to activate.
 /// </summary>
 public class BillSyncJob : ISyncJob
 {
     public string Name => "bill_sync";
-    public string CompanyId => _companyId;
 
     private readonly string _connectionString;
-    private readonly string _companyId;
+    private readonly bool _fullBackfill;
+    private readonly int _backfillStartYear;
+    private int _totalRecordsSynced;
 
-    public BillSyncJob(string connectionString, string companyId)
+    public BillSyncJob(string connectionString, bool fullBackfill = false, int backfillStartYear = 2020)
     {
         _connectionString = connectionString;
-        _companyId = companyId;
+        _fullBackfill = fullBackfill;
+        _backfillStartYear = backfillStartYear;
     }
 
     public List<string> GetQbXmlRequests()
     {
+        if (_fullBackfill)
+        {
+            var requests = new List<string>();
+            var currentYear = DateTime.UtcNow.Year;
+
+            for (var year = _backfillStartYear; year <= currentYear; year++)
+            {
+                requests.Add($@"<?xml version=""1.0"" encoding=""utf-8""?>
+            <?qbxml version=""16.0""?>
+            <QBXML>
+                <QBXMLMsgsRq onError=""continueOnError"">
+                    <BillQueryRq>
+                        <TxnDateRangeFilter>
+                            <FromTxnDate>{year}-01-01</FromTxnDate>
+                            <ToTxnDate>{year}-12-31</ToTxnDate>
+                        </TxnDateRangeFilter>
+                        <OwnerID>0</OwnerID>
+                    </BillQueryRq>
+                </QBXMLMsgsRq>
+            </QBXML>");
+            }
+
+            return requests;
+        }
+
         return new List<string>
         {
             @"<?xml version=""1.0"" encoding=""utf-8""?>
@@ -31,7 +63,7 @@ public class BillSyncJob : ISyncJob
                 <QBXMLMsgsRq onError=""continueOnError"">
                     <BillQueryRq>
                         <ModifiedDateRangeFilter>
-                            <FromModifiedDate>" + new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc).ToString("yyyy-MM-ddTHH:mm:ss") // historical backfill + @"</FromModifiedDate>
+                            <FromModifiedDate>" + DateTime.UtcNow.AddDays(-7).ToString("yyyy-MM-ddTHH:mm:ss") + @"</FromModifiedDate>
                         </ModifiedDateRangeFilter>
                         <OwnerID>0</OwnerID>
                     </BillQueryRq>
@@ -64,18 +96,17 @@ public class BillSyncJob : ISyncJob
             var memo = bill.Element("Memo")?.Value;
 
             await using var cmd = new NpgsqlCommand(@"
-                INSERT INTO bills (company_id, txn_id, vendor_id, vendor_name, ref_number, txn_date,
+                INSERT INTO bills (txn_id, vendor_id, vendor_name, ref_number, txn_date,
                     due_date, amount, balance_remaining, is_paid, memo, last_synced_at)
-                VALUES (@companyId, @txnId, @vendorId, @vendorName, @ref, @txnDate::date,
+                VALUES (@txnId, @vendorId, @vendorName, @ref, @txnDate::date,
                     @dueDate::date, @amount, @balance, @isPaid, @memo, NOW())
-                ON CONFLICT (company_id, txn_id) DO UPDATE SET
+                ON CONFLICT (txn_id) DO UPDATE SET
                     vendor_name = EXCLUDED.vendor_name,
                     balance_remaining = EXCLUDED.balance_remaining,
                     is_paid = EXCLUDED.is_paid,
                     last_synced_at = NOW()
             ", conn);
 
-            cmd.Parameters.AddWithValue("companyId", _companyId);
             cmd.Parameters.AddWithValue("txnId", txnId);
             cmd.Parameters.AddWithValue("vendorId", (object?)vendorId ?? DBNull.Value);
             cmd.Parameters.AddWithValue("vendorName", vendorName);
@@ -91,14 +122,15 @@ public class BillSyncJob : ISyncJob
             recordCount++;
         }
 
+        _totalRecordsSynced += recordCount;
+
         await using var statusCmd = new NpgsqlCommand(@"
             UPDATE sync_status SET
                 last_run_at = NOW(), last_success_at = NOW(),
                 records_synced = @count, status = 'success', error_message = NULL
-            WHERE company_id = @companyId AND job_name = 'bill_sync'
+            WHERE job_name = 'bill_sync'
         ", conn);
-        statusCmd.Parameters.AddWithValue("count", recordCount);
-        statusCmd.Parameters.AddWithValue("companyId", _companyId);
+        statusCmd.Parameters.AddWithValue("count", _totalRecordsSynced);
         await statusCmd.ExecuteNonQueryAsync();
     }
 
