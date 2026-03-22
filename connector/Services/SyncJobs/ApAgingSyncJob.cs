@@ -26,12 +26,11 @@ public class ApAgingSyncJob : ISyncJob
         return new List<string>
         {
             @"<?xml version=""1.0"" encoding=""utf-8""?>
-            <?qbxml version=""16.0""?>
+            <?qbxml version=""17.0""?>
             <QBXML>
                 <QBXMLMsgsRq onError=""continueOnError"">
                     <AgingReportQueryRq>
                         <AgingReportType>APAgingSummary</AgingReportType>
-                        <ReportAgingAsOf>" + DateTime.UtcNow.ToString("yyyy-MM-dd") + @"</ReportAgingAsOf>
                     </AgingReportQueryRq>
                 </QBXMLMsgsRq>
             </QBXML>"
