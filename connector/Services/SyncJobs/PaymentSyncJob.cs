@@ -1,29 +1,63 @@
 using System.Xml.Linq;
 using System.Text.Json;
 using Npgsql;
+using NpgsqlTypes;
 
 namespace U1PFinanceSync.Services.SyncJobs;
 
 /// <summary>
 /// Syncs received payments from QuickBooks Desktop.
 /// Uses ReceivePaymentQuery qbXML request.
+///
+/// Supports two modes:
+///   - Incremental (default): queries last 7 days by ModifiedDateRangeFilter
+///   - Full backfill: generates one request per year using TxnDateRangeFilter.
+///     Set Backfill:Enabled = true in appsettings.json to activate.
 /// </summary>
 public class PaymentSyncJob : ISyncJob
 {
     public string Name => "payment_sync";
-    public string CompanyId => _companyId;
 
     private readonly string _connectionString;
-    private readonly string _companyId;
+    private readonly bool _fullBackfill;
+    private readonly int _backfillStartYear;
+    private int _totalRecordsSynced;
 
-    public PaymentSyncJob(string connectionString, string companyId)
+    public PaymentSyncJob(string connectionString, bool fullBackfill = false, int backfillStartYear = 2020)
     {
         _connectionString = connectionString;
-        _companyId = companyId;
+        _fullBackfill = fullBackfill;
+        _backfillStartYear = backfillStartYear;
     }
 
     public List<string> GetQbXmlRequests()
     {
+        if (_fullBackfill)
+        {
+            var requests = new List<string>();
+            var currentYear = DateTime.UtcNow.Year;
+
+            for (var year = _backfillStartYear; year <= currentYear; year++)
+            {
+                requests.Add($@"<?xml version=""1.0"" encoding=""utf-8""?>
+            <?qbxml version=""16.0""?>
+            <QBXML>
+                <QBXMLMsgsRq onError=""continueOnError"">
+                    <ReceivePaymentQueryRq>
+                        <TxnDateRangeFilter>
+                            <FromTxnDate>{year}-01-01</FromTxnDate>
+                            <ToTxnDate>{year}-12-31</ToTxnDate>
+                        </TxnDateRangeFilter>
+                        <IncludeLineItems>true</IncludeLineItems>
+                        <OwnerID>0</OwnerID>
+                    </ReceivePaymentQueryRq>
+                </QBXMLMsgsRq>
+            </QBXML>");
+            }
+
+            return requests;
+        }
+
         return new List<string>
         {
             @"<?xml version=""1.0"" encoding=""utf-8""?>
@@ -32,7 +66,7 @@ public class PaymentSyncJob : ISyncJob
                 <QBXMLMsgsRq onError=""continueOnError"">
                     <ReceivePaymentQueryRq>
                         <ModifiedDateRangeFilter>
-                            <FromModifiedDate>" + new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc).ToString("yyyy-MM-ddTHH:mm:ss") // historical backfill + @"</FromModifiedDate>
+                            <FromModifiedDate>" + DateTime.UtcNow.AddDays(-7).ToString("yyyy-MM-ddTHH:mm:ss") + @"</FromModifiedDate>
                         </ModifiedDateRangeFilter>
                         <IncludeLineItems>true</IncludeLineItems>
                         <OwnerID>0</OwnerID>
@@ -63,6 +97,7 @@ public class PaymentSyncJob : ISyncJob
             var depositTo = pmt.Element("DepositToAccountRef")?.Element("FullName")?.Value;
             var memo = pmt.Element("Memo")?.Value;
 
+            // Build applied invoice refs from AppliedToTxnRet elements
             var appliedRefs = new List<object>();
             foreach (var applied in pmt.Elements("AppliedToTxnRet"))
             {
@@ -76,11 +111,11 @@ public class PaymentSyncJob : ISyncJob
             var appliedJson = JsonSerializer.Serialize(appliedRefs);
 
             await using var cmd = new NpgsqlCommand(@"
-                INSERT INTO payments (company_id, txn_id, customer_id, payment_date, amount, ref_number,
+                INSERT INTO payments (txn_id, customer_id, payment_date, amount, ref_number,
                     payment_method, deposit_to, memo, applied_invoice_refs, last_synced_at)
-                VALUES (@companyId, @txnId, @custId, @date::date, @amount, @ref, @method,
+                VALUES (@txnId, @custId, @date::date, @amount, @ref, @method,
                     @deposit, @memo, @applied::jsonb, NOW())
-                ON CONFLICT (company_id, txn_id) DO UPDATE SET
+                ON CONFLICT (txn_id) DO UPDATE SET
                     amount = EXCLUDED.amount,
                     ref_number = EXCLUDED.ref_number,
                     payment_method = EXCLUDED.payment_method,
@@ -88,7 +123,6 @@ public class PaymentSyncJob : ISyncJob
                     last_synced_at = NOW()
             ", conn);
 
-            cmd.Parameters.AddWithValue("companyId", _companyId);
             cmd.Parameters.AddWithValue("txnId", txnId);
             cmd.Parameters.AddWithValue("custId", (object?)customerId ?? DBNull.Value);
             cmd.Parameters.AddWithValue("date", (object?)paymentDate ?? DBNull.Value);
@@ -103,14 +137,15 @@ public class PaymentSyncJob : ISyncJob
             recordCount++;
         }
 
+        _totalRecordsSynced += recordCount;
+
         await using var statusCmd = new NpgsqlCommand(@"
             UPDATE sync_status SET
                 last_run_at = NOW(), last_success_at = NOW(),
                 records_synced = @count, status = 'success', error_message = NULL
-            WHERE company_id = @companyId AND job_name = 'payment_sync'
+            WHERE job_name = 'payment_sync'
         ", conn);
-        statusCmd.Parameters.AddWithValue("count", recordCount);
-        statusCmd.Parameters.AddWithValue("companyId", _companyId);
+        statusCmd.Parameters.AddWithValue("count", _totalRecordsSynced);
         await statusCmd.ExecuteNonQueryAsync();
     }
 
