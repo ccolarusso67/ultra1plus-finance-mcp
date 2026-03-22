@@ -31,7 +31,7 @@ public class BillSyncJob : ISyncJob
                 <QBXMLMsgsRq onError=""continueOnError"">
                     <BillQueryRq>
                         <ModifiedDateRangeFilter>
-                            <FromModifiedDate>" + DateTime.UtcNow.AddDays(-7).ToString("yyyy-MM-ddTHH:mm:ss") + @"</FromModifiedDate>
+                            <FromModifiedDate>" + new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc).ToString("yyyy-MM-ddTHH:mm:ss") // historical backfill + @"</FromModifiedDate>
                         </ModifiedDateRangeFilter>
                         <OwnerID>0</OwnerID>
                     </BillQueryRq>
