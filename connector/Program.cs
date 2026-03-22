@@ -12,6 +12,12 @@ Log.Logger = new LoggerConfiguration()
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Increase Kestrel request body size for large QB XML responses
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = 300_000_000; // 300 MB
+});
+
 builder.Host.UseSerilog();
 
 // Register services
