@@ -12,7 +12,9 @@ import {
   Warehouse,
   ClipboardList,
   Activity,
+  Building2,
 } from "lucide-react";
+import { useCompany, COMPANIES } from "@/lib/company";
 
 const navItems = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
@@ -27,6 +29,7 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { companyId, setCompanyId } = useCompany();
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 bg-[#0C2340] text-white flex flex-col z-50">
@@ -37,6 +40,25 @@ export default function Sidebar() {
           <span className="text-white/90 font-normal">Finance</span>
         </h1>
         <p className="text-[10px] uppercase tracking-[0.15em] text-white/30 mt-1">Financial Dashboard</p>
+      </div>
+
+      {/* Company Selector */}
+      <div className="px-4 py-3 border-b border-[#1A3A60]">
+        <div className="flex items-center gap-2 mb-1.5">
+          <Building2 size={12} className="text-white/40" />
+          <span className="text-[10px] uppercase tracking-[0.12em] text-white/40 font-medium">Company</span>
+        </div>
+        <select
+          value={companyId}
+          onChange={(e) => setCompanyId(e.target.value)}
+          className="w-full bg-[#1A3A60] text-white/90 text-[13px] font-medium px-2.5 py-1.5 rounded border border-[#2A4A70] focus:outline-none focus:border-[#0098DB] cursor-pointer"
+        >
+          {COMPANIES.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.shortCode} — {c.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Navigation */}

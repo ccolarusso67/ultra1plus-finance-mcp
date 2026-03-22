@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
   BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -11,15 +10,12 @@ import ChartCard from "@/components/ChartCard";
 import DataTable from "@/components/DataTable";
 import StatusBadge from "@/components/StatusBadge";
 import { formatCurrency } from "@/lib/format";
+import { useCompanyFetch } from "@/lib/useCompanyFetch";
 
 const COLORS = ["#003A5C", "#0098DB", "#137333", "#5F6368", "#C5221F", "#E37400", "#1A73E8", "#8E24AA"];
 
 export default function ProductsPage() {
-  const [data, setData] = useState<Record<string, unknown> | null>(null);
-
-  useEffect(() => {
-    fetch("/api/products").then((r) => r.json()).then((d) => { if (!d.error) setData(d); }).catch(() => {});
-  }, []);
+  const data = useCompanyFetch<Record<string, unknown>>("/api/products");
 
   const d2 = data as Record<string, unknown> || {};
   const rankings = (d2?.rankings as Record<string, unknown>[]) || [];

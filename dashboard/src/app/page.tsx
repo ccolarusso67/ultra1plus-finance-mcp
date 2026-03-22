@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend,
@@ -14,6 +13,7 @@ import ChartCard from "@/components/ChartCard";
 import DataTable from "@/components/DataTable";
 import StatusBadge from "@/components/StatusBadge";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { useCompanyFetch } from "@/lib/useCompanyFetch";
 
 interface OverviewData {
   kpis: Record<string, number>;
@@ -25,14 +25,7 @@ interface OverviewData {
 }
 
 export default function OverviewPage() {
-  const [data, setData] = useState<OverviewData | null>(null);
-
-  useEffect(() => {
-    fetch("/api/overview")
-      .then((r) => r.json())
-      .then((d) => { if (!d.error) setData(d); else setData(null); })
-      .catch(() => setData(null));
-  }, []);
+  const data = useCompanyFetch<OverviewData>("/api/overview");
 
   const kpis = data?.kpis || { total_ar: 0, total_ap: 0, net_position: 0, mtd_revenue: 0, mtd_margin_pct: 0, backlog_value: 0, overdue_orders: 0 };
   const revenueTrend = data?.revenueTrend || [];

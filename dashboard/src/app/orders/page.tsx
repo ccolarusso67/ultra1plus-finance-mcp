@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer,
@@ -11,13 +10,10 @@ import ChartCard from "@/components/ChartCard";
 import DataTable from "@/components/DataTable";
 import StatusBadge from "@/components/StatusBadge";
 import { formatCurrency, formatDate } from "@/lib/format";
+import { useCompanyFetch } from "@/lib/useCompanyFetch";
 
 export default function SalesOrdersPage() {
-  const [data, setData] = useState<Record<string, unknown> | null>(null);
-
-  useEffect(() => {
-    fetch("/api/sales-orders").then((r) => r.json()).then((d) => { if (!d.error) setData(d); }).catch(() => {});
-  }, []);
+  const data = useCompanyFetch<Record<string, unknown>>("/api/sales-orders");
 
   if (!data) {
     return <div className="flex items-center justify-center h-96"><div className="text-[#5F6368]">Loading...</div></div>;

@@ -1,7 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { query, queryOne } from "@/lib/db";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const companyId = request.nextUrl.searchParams.get("company_id") || "u1p_ultrachem";
+
   try {
     const [monthly, ytd] = await Promise.all([
       query(`
@@ -12,23 +14,24 @@ export async function GET() {
                     THEN ROUND((gross_profit::numeric / income * 100), 1)
                     ELSE 0 END AS margin_pct
         FROM monthly_pnl
-        WHERE report_basis = 'accrual'
+        WHERE company_id = $1 AND report_basis = 'accrual'
         ORDER BY month ASC
-      `),
+      `, [companyId]),
       queryOne(`
         WITH current_ytd AS (
           SELECT SUM(income) AS revenue, SUM(cogs) AS cogs,
                  SUM(gross_profit) AS gross_profit,
                  SUM(operating_expenses) AS opex, SUM(net_income) AS net_income
           FROM monthly_pnl
-          WHERE month >= DATE_TRUNC('year', CURRENT_DATE) AND report_basis = 'accrual'
+          WHERE company_id = $1 AND month >= DATE_TRUNC('year', CURRENT_DATE) AND report_basis = 'accrual'
         ),
         prior_ytd AS (
           SELECT SUM(income) AS revenue, SUM(cogs) AS cogs,
                  SUM(gross_profit) AS gross_profit,
                  SUM(operating_expenses) AS opex, SUM(net_income) AS net_income
           FROM monthly_pnl
-          WHERE month >= DATE_TRUNC('year', CURRENT_DATE) - INTERVAL '1 year'
+          WHERE company_id = $1
+            AND month >= DATE_TRUNC('year', CURRENT_DATE) - INTERVAL '1 year'
             AND month < DATE_TRUNC('year', CURRENT_DATE) AND report_basis = 'accrual'
         )
         SELECT
@@ -41,7 +44,7 @@ export async function GET() {
           CASE WHEN p.net_income != 0
                THEN ROUND(((c.net_income - p.net_income) / ABS(p.net_income) * 100)::numeric, 1) ELSE 0 END AS ni_change_pct
         FROM current_ytd c, prior_ytd p
-      `),
+      `, [companyId]),
     ]);
 
     return NextResponse.json({ monthly, ytd });

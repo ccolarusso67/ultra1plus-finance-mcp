@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ScatterChart, Scatter, ZAxis, Legend,
@@ -11,13 +10,10 @@ import ChartCard from "@/components/ChartCard";
 import DataTable from "@/components/DataTable";
 import StatusBadge from "@/components/StatusBadge";
 import { formatCurrency } from "@/lib/format";
+import { useCompanyFetch } from "@/lib/useCompanyFetch";
 
 export default function CustomersPage() {
-  const [data, setData] = useState<Record<string, unknown> | null>(null);
-
-  useEffect(() => {
-    fetch("/api/customers").then((r) => r.json()).then((d) => { if (!d.error) setData(d); }).catch(() => {});
-  }, []);
+  const data = useCompanyFetch<Record<string, unknown>>("/api/customers");
 
   const d = data as Record<string, unknown> || {};
   const rankings = (d.rankings as Record<string, unknown>[]) || [];

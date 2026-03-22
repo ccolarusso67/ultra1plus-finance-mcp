@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
   BarChart, Bar, AreaChart, Area, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -10,13 +9,10 @@ import KpiCard from "@/components/KpiCard";
 import ChartCard from "@/components/ChartCard";
 import DataTable from "@/components/DataTable";
 import { formatCurrency } from "@/lib/format";
+import { useCompanyFetch } from "@/lib/useCompanyFetch";
 
 export default function RevenuePage() {
-  const [data, setData] = useState<Record<string, unknown> | null>(null);
-
-  useEffect(() => {
-    fetch("/api/pnl").then((r) => r.json()).then((d) => { if (!d.error) setData(d); }).catch(() => {});
-  }, []);
+  const data = useCompanyFetch<Record<string, unknown>>("/api/pnl");
 
   const monthly = (data as Record<string, unknown>)?.monthly as Record<string, unknown>[] || [];
   const ytd = (data as Record<string, unknown>)?.ytd as Record<string, unknown> || {};

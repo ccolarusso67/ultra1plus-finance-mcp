@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
   PieChart, Pie, Cell, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -11,15 +10,12 @@ import ChartCard from "@/components/ChartCard";
 import DataTable from "@/components/DataTable";
 import StatusBadge from "@/components/StatusBadge";
 import { formatCurrency, formatNumber } from "@/lib/format";
+import { useCompanyFetch } from "@/lib/useCompanyFetch";
 
 const COLORS = ["#003A5C", "#0098DB", "#137333", "#5F6368", "#C5221F", "#E37400", "#1A73E8", "#8E24AA"];
 
 export default function InventoryPage() {
-  const [data, setData] = useState<Record<string, unknown> | null>(null);
-
-  useEffect(() => {
-    fetch("/api/inventory").then((r) => r.json()).then((d) => { if (!d.error) setData(d); }).catch(() => {});
-  }, []);
+  const data = useCompanyFetch<Record<string, unknown>>("/api/inventory");
 
   if (!data) {
     return <div className="flex items-center justify-center h-96"><div className="text-[#5F6368]">Loading...</div></div>;
