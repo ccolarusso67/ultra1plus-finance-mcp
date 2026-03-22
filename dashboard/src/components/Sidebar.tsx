@@ -66,8 +66,12 @@ export default function Sidebar() {
       {/* Sync Status */}
       <div className="px-4 py-3 border-t border-[#1A3A60]">
         <Link
-          href="/api/sync-health"
-          className="flex items-center gap-2 text-[11px] text-white/30 hover:text-white/50 transition-colors"
+          href="/sync"
+          className={`flex items-center gap-2 text-[11px] transition-colors ${
+            pathname === "/sync"
+              ? "text-[#0098DB]"
+              : "text-white/30 hover:text-white/50"
+          }`}
         >
           <Activity size={12} />
           Data Sync Status
