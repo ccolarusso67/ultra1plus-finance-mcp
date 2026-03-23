@@ -13,12 +13,14 @@ import {
   ClipboardList,
   Activity,
   Building2,
+  Banknote,
 } from "lucide-react";
 import { useCompany, COMPANIES } from "@/lib/company";
 
 const navItems = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
   { href: "/revenue", label: "Revenue & P&L", icon: TrendingUp },
+  { href: "/cash", label: "Operational Cash", icon: Banknote },
   { href: "/customers", label: "Customers", icon: Users },
   { href: "/products", label: "Products", icon: Package },
   { href: "/receivables", label: "Receivables", icon: FileText },
