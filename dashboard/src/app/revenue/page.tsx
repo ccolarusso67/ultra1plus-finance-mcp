@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import {
-  ComposedChart, Bar, Line,
+  ComposedChart, Bar, Line, LabelList,
   BarChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import {
@@ -60,6 +60,7 @@ export default function RevenuePage() {
       Revenue: Number(r.income || 0),
       COGS: Number(r.cogs || 0),
       "Net Income": Number(r.net_income || 0),
+      margin_pct: Number(r.margin_pct || 0),
     }));
 
   const quarterlyData = revenueByQuarter.map((r: R) => ({
@@ -139,7 +140,9 @@ export default function RevenuePage() {
             <Legend />
             <Bar dataKey="Revenue" fill="#003A5C" radius={[3, 3, 0, 0]} />
             <Bar dataKey="COGS" fill="#C5221F" radius={[3, 3, 0, 0]} />
-            <Bar dataKey="Net Income" fill="#137333" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="Net Income" fill="#137333" radius={[3, 3, 0, 0]}>
+              <LabelList dataKey="margin_pct" position="top" fontSize={9} fill="#137333" fontWeight={600} formatter={(v: number) => `${v}%`} />
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </Card>
