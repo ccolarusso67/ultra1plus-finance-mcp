@@ -185,7 +185,7 @@ export default function CashPage() {
           <BarChart data={c.daily || []}>
             <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
             <XAxis dataKey="label" tick={{ fontSize: 9 }} interval={Math.max(Math.floor((c.daily || []).length / 15), 1)} />
-            <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} />
+            <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} domain={[0, 100000]} />
             <Tooltip formatter={(v: number) => formatCurrency(v)} />
             <Bar dataKey="amount" fill="#137333" radius={[1, 1, 0, 0]} />
           </BarChart>
