@@ -15,6 +15,8 @@ public interface ISyncJob
 
 /// <summary>
 /// Manages sync job scheduling and tracks which jobs need to run.
+/// Creates per-company job instances dynamically — each QBWC connection
+/// authenticates as a specific company, and jobs are scoped to that company.
 /// </summary>
 public class SyncJobManager
 {
@@ -22,10 +24,7 @@ public class SyncJobManager
     private readonly IConfiguration _config;
     private readonly string _connectionString;
 
-    // Registered sync jobs
-    private readonly Dictionary<string, ISyncJob> _jobs = new();
-
-    // Track when each job last ran
+    // Track when each (company, job) pair last ran
     private readonly Dictionary<string, DateTime> _lastRunTimes = new();
 
     public SyncJobManager(ILogger<SyncJobManager> logger, IConfiguration config)
@@ -34,71 +33,80 @@ public class SyncJobManager
         _config = config;
         _connectionString = config.GetConnectionString("FinanceDb")
             ?? throw new InvalidOperationException("FinanceDb connection string not configured");
-
-        RegisterJobs();
     }
 
-    private void RegisterJobs()
+    /// <summary>
+    /// Creates a fresh set of sync jobs scoped to a specific company.
+    /// Called per QBWC session — each company gets its own job instances.
+    /// </summary>
+    private Dictionary<string, ISyncJob> CreateJobsForCompany(string companyId)
     {
-        // Backfill mode: when enabled, transaction sync jobs query ALL historical
-        // data by year using TxnDateRangeFilter instead of the last 7 days.
-        // Set Backfill:Enabled = true in appsettings.json for initial data load,
-        // then set to false for ongoing incremental sync.
         var backfillEnabled = _config.GetValue<bool>("Backfill:Enabled", false);
         var backfillStartYear = _config.GetValue<int>("Backfill:StartYear", 2020);
 
         if (backfillEnabled)
             _logger.LogInformation(
-                "Backfill mode ENABLED â transaction jobs will query from {Year} to present",
-                backfillStartYear);
+                "Backfill mode ENABLED for {Company} — transaction jobs will query from {Year} to present",
+                companyId, backfillStartYear);
 
-        // Customers must sync first (other jobs reference customer_id via FK)
-        _jobs["customer_sync"] = new CustomerSyncJob(_connectionString);
+        var jobs = new Dictionary<string, ISyncJob>
+        {
+            // Customers must sync first (other jobs reference customer_id via FK)
+            ["customer_sync"] = new CustomerSyncJob(_connectionString, companyId),
 
-        // Core transaction sync (backfill-aware)
-        _jobs["invoice_sync"] = new InvoiceSyncJob(_connectionString, backfillEnabled, backfillStartYear);
-        _jobs["payment_sync"] = new PaymentSyncJob(_connectionString, backfillEnabled, backfillStartYear);
-        _jobs["bill_sync"] = new BillSyncJob(_connectionString, backfillEnabled, backfillStartYear);
-        _jobs["sales_order_sync"] = new SalesOrderSyncJob(_connectionString, backfillEnabled, backfillStartYear);
+            // Core transaction sync (incremental by default, backfill when enabled)
+            // InvoiceSyncJob is multi-company aware
+            ["invoice_sync"] = new InvoiceSyncJob(_connectionString, companyId),
+            // Payment/Bill/SalesOrder still use old constructor — companyId must be
+            // added to these jobs when they are refactored for multi-company
+            ["payment_sync"] = new PaymentSyncJob(_connectionString, backfillEnabled, backfillStartYear),
+            ["bill_sync"] = new BillSyncJob(_connectionString, backfillEnabled, backfillStartYear),
+            ["sales_order_sync"] = new SalesOrderSyncJob(_connectionString, backfillEnabled, backfillStartYear),
 
-        // Product & pricing sync
-        _jobs["product_sync"] = new ProductSyncJob(_connectionString);
-        // price_level_sync intentionally disabled â QuickBooks has Price Rules
-        // enabled in this company file, which makes Price Levels unavailable.
-        // _jobs["price_level_sync"] = new PriceLevelSyncJob(_connectionString);
+            // Product sync
+            ["product_sync"] = new ProductSyncJob(_connectionString, companyId),
+            // price_level_sync intentionally disabled — QuickBooks has Price Rules
+            // enabled in this company file, which makes Price Levels unavailable.
+            // ["price_level_sync"] = new PriceLevelSyncJob(_connectionString, companyId),
 
-        // Report-based sync (snapshots)
-        _jobs["ar_aging_sync"] = new ArAgingSyncJob(_connectionString);
-        _jobs["ap_aging_sync"] = new ApAgingSyncJob(_connectionString);
-        _jobs["inventory_sync"] = new InventorySyncJob(_connectionString);
-        _jobs["pnl_sync"] = new PnlSyncJob(_connectionString);
-        _jobs["sales_by_customer_sync"] = new SalesByCustomerSyncJob(_connectionString);
+            // Report-based sync (snapshots)
+            ["ar_aging_sync"] = new ArAgingSyncJob(_connectionString, companyId),
+            ["ap_aging_sync"] = new ApAgingSyncJob(_connectionString, companyId),
+            ["inventory_sync"] = new InventorySyncJob(_connectionString, companyId),
+            ["pnl_sync"] = new PnlSyncJob(_connectionString, companyId),
+            ["sales_by_customer_sync"] = new SalesByCustomerSyncJob(_connectionString, companyId),
+        };
 
-        _logger.LogInformation("Registered {Count} sync jobs", _jobs.Count);
+        _logger.LogInformation("Created {Count} sync jobs for company {Company}",
+            jobs.Count, companyId);
+
+        return jobs;
     }
 
     /// <summary>
-    /// Returns jobs that are due to run based on their cron schedule.
+    /// Returns jobs that are due to run for a specific company based on cron schedule.
     /// Called by QBWC authenticate to determine what work needs doing.
     /// </summary>
-    public List<ISyncJob> GetPendingJobs()
+    public List<ISyncJob> GetPendingJobs(string companyId)
     {
+        var jobs = CreateJobsForCompany(companyId);
         var pending = new List<ISyncJob>();
         var schedules = _config.GetSection("SyncSchedule");
 
-        foreach (var (name, job) in _jobs)
+        foreach (var (name, job) in jobs)
         {
             var cronExpr = schedules[ScheduleKeyForJob(name)];
             if (cronExpr == null) continue;
 
-            var lastRun = _lastRunTimes.GetValueOrDefault(name, DateTime.MinValue);
+            var key = $"{companyId}:{name}";
+            var lastRun = _lastRunTimes.GetValueOrDefault(key, DateTime.MinValue);
             var cron = Cronos.CronExpression.Parse(cronExpr);
             var nextRun = cron.GetNextOccurrence(lastRun, TimeZoneInfo.Local);
 
             if (nextRun.HasValue && nextRun.Value <= DateTime.UtcNow)
             {
                 pending.Add(job);
-                _lastRunTimes[name] = DateTime.UtcNow;
+                _lastRunTimes[key] = DateTime.UtcNow;
             }
         }
 
