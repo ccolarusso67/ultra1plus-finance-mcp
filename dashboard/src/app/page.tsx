@@ -10,8 +10,10 @@ import {
 import Link from "next/link";
 import DataTable from "@/components/DataTable";
 import StatusBadge from "@/components/StatusBadge";
+import { useState, useMemo } from "react";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { useCompanyFetch } from "@/lib/useCompanyFetch";
+import PeriodSelector from "@/components/PeriodSelector";
 import { AlertTriangle, ShieldAlert, CheckCircle2, Brain, ArrowRight } from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -24,6 +26,7 @@ interface OverviewData {
   apAging: R[];
   overdueCustomers: R[];
   recentPayments: R[];
+  periodLabel?: string;
 }
 
 interface InsightsData {
@@ -35,7 +38,9 @@ interface InsightsData {
 }
 
 export default function OverviewPage() {
-  const data = useCompanyFetch<OverviewData>("/api/overview");
+  const [period, setPeriod] = useState("trailing12");
+  const params = useMemo(() => ({ period }), [period]);
+  const data = useCompanyFetch<OverviewData>("/api/overview", params);
   const insightsData = useCompanyFetch<InsightsData>("/api/insights");
 
   const kpis = data?.kpis || {};
@@ -72,10 +77,13 @@ export default function OverviewPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <Title>Financial Overview</Title>
-        <Text>Executive summary — U1P Ultrachem financial performance</Text>
-      </div>
+      <Flex justifyContent="between" alignItems="end">
+        <div>
+          <Title>Financial Overview</Title>
+          <Text>Executive summary — {data?.periodLabel || "Last 12 months"}</Text>
+        </div>
+        <PeriodSelector value={period} onChange={setPeriod} />
+      </Flex>
 
       {/* Financial Intelligence Banner */}
       {insightsData && (insightsData.insightCount.critical > 0 || insightsData.insightCount.warning > 0) && (
@@ -194,12 +202,14 @@ export default function OverviewPage() {
           </Flex>
         </Card>
         <Card decoration="top" decorationColor="cyan">
-          <Text>MTD Revenue</Text>
-          <Metric>{formatCurrency(Number(kpis.mtd_revenue || 0))}</Metric>
+          <Text>Revenue</Text>
+          <Metric>{formatCurrency(Number(kpis.period_revenue || kpis.mtd_revenue || 0))}</Metric>
+          <Text className="text-xs text-gray-400 mt-1">{data?.periodLabel || ""}</Text>
         </Card>
         <Card decoration="top" decorationColor="emerald">
-          <Text>MTD Gross Margin</Text>
-          <Metric>{kpis.mtd_margin_pct || 0}%</Metric>
+          <Text>Gross Margin</Text>
+          <Metric>{kpis.period_margin_pct || kpis.mtd_margin_pct || 0}%</Metric>
+          <Text className="text-xs text-gray-400 mt-1">{data?.periodLabel || ""}</Text>
         </Card>
         <Card decoration="top" decorationColor="amber">
           <Flex justifyContent="between" alignItems="center">
@@ -220,7 +230,7 @@ export default function OverviewPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2">
           <Title>Revenue Trend</Title>
-          <Subtitle>Jan 2025 — present</Subtitle>
+          <Subtitle>{data?.periodLabel || "Last 12 months"}</Subtitle>
           <ResponsiveContainer width="100%" height={288} className="mt-4">
             <AreaChart data={revenueTrendData}>
               <defs>

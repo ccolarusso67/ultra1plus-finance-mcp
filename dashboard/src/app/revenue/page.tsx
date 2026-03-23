@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import {
   ComposedChart, Bar, Line, LabelList,
   BarChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -8,11 +8,10 @@ import {
 import {
   Card, Metric, Text, Flex, BadgeDelta, Grid, Title, Subtitle,
 } from "@tremor/react";
-import { Calendar } from "lucide-react";
 import DataTable from "@/components/DataTable";
+import PeriodSelector from "@/components/PeriodSelector";
 import { formatCurrency } from "@/lib/format";
 import { useCompanyFetch } from "@/lib/useCompanyFetch";
-import { useCompany } from "@/lib/company";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type R = Record<string, any>;
@@ -20,19 +19,11 @@ type R = Record<string, any>;
 const currencyFormatter = (v: number) => `$${(v / 1000).toFixed(0)}K`;
 
 export default function RevenuePage() {
-  const { companyId } = useCompany();
   const [period, setPeriod] = useState("trailing12");
-  const [analyticsData, setAnalyticsData] = useState<R | null>(null);
+  const params = useMemo(() => ({ period }), [period]);
 
   const pnlData = useCompanyFetch<R>("/api/pnl");
-
-  useEffect(() => {
-    setAnalyticsData(null);
-    fetch(`/api/revenue-analytics?company_id=${encodeURIComponent(companyId)}&period=${encodeURIComponent(period)}`)
-      .then((r) => r.json())
-      .then((d) => { if (!d.error) setAnalyticsData(d); })
-      .catch(() => {});
-  }, [companyId, period]);
+  const analyticsData = useCompanyFetch<R>("/api/revenue-analytics", params);
 
   const monthly = (pnlData?.monthly as R[]) || [];
   const ytd = (pnlData?.ytd as R) || {};
@@ -255,40 +246,13 @@ export default function RevenuePage() {
       )}
 
       {/* === SECTION: Revenue Analytics === */}
-      <div className="pt-2 flex items-end justify-between">
+      <Flex justifyContent="between" alignItems="end" className="pt-2">
         <div>
           <Title>Revenue Analytics</Title>
-          <Text>Revenue breakdown by customer, product, and category</Text>
+          <Text>Revenue breakdown by customer, product, and category — {periodLabel}</Text>
         </div>
-        <div className="flex items-center gap-2">
-          <Calendar size={14} className="text-muted-foreground" />
-          <select
-            value={period}
-            onChange={(e) => setPeriod(e.target.value)}
-            className="text-[13px] border border-border rounded px-3 py-1.5 bg-card text-foreground focus:outline-none focus:border-[#0098DB] cursor-pointer"
-          >
-            <optgroup label="Trailing">
-              <option value="trailing6">Last 6 months</option>
-              <option value="trailing12">Last 12 months</option>
-              <option value="trailing24">Last 24 months</option>
-            </optgroup>
-            <optgroup label="Quarters (closed)">
-              {availablePeriods
-                .filter((p: R) => p.value !== `${new Date().getFullYear()}Q${Math.ceil((new Date().getMonth() + 1) / 3)}`)
-                .map((p: R) => (
-                  <option key={p.value} value={p.value}>{p.label}</option>
-                ))}
-            </optgroup>
-            <optgroup label="Full Year">
-              {[...new Set(availablePeriods.map((p: R) => String(p.value).substring(0, 4)))]
-                .filter((y) => parseInt(y) < new Date().getFullYear())
-                .map((y) => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
-            </optgroup>
-          </select>
-        </div>
-      </div>
+        <PeriodSelector value={period} onChange={setPeriod} />
+      </Flex>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>

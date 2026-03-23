@@ -8,8 +8,11 @@ import {
 import {
   Card, Metric, Text, Grid, Title, Subtitle,
 } from "@tremor/react";
+import { useState, useMemo } from "react";
+import { Flex } from "@tremor/react";
 import DataTable from "@/components/DataTable";
 import StatusBadge from "@/components/StatusBadge";
+import PeriodSelector from "@/components/PeriodSelector";
 import { formatCurrency } from "@/lib/format";
 import { useCompanyFetch } from "@/lib/useCompanyFetch";
 
@@ -19,7 +22,9 @@ type R = Record<string, any>;
 const DONUT_COLORS = ["#003A5C", "#0098DB", "#137333", "#64748B", "#C5221F", "#E37400", "#8E24AA", "#7F1D1D"];
 
 export default function ProductsPage() {
-  const data = useCompanyFetch<Record<string, unknown>>("/api/products");
+  const [period, setPeriod] = useState("trailing6");
+  const params = useMemo(() => ({ period }), [period]);
+  const data = useCompanyFetch<Record<string, unknown>>("/api/products", params);
 
   const d2 = data as Record<string, unknown> || {};
   const rankings = (d2?.rankings as R[]) || [];
@@ -47,10 +52,13 @@ export default function ProductsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <Title>Products</Title>
-        <Text>Product performance, margins, and alerts</Text>
-      </div>
+      <Flex justifyContent="between" alignItems="end">
+        <div>
+          <Title>Products</Title>
+          <Text>Product performance, margins, and alerts — {(d2.periodLabel as string) || "Last 6 months"}</Text>
+        </div>
+        <PeriodSelector value={period} onChange={setPeriod} />
+      </Flex>
 
       <Grid numItemsSm={2} numItemsLg={4} className="gap-4">
         <Card decoration="top" decorationColor="blue">

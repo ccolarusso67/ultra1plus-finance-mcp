@@ -8,8 +8,11 @@ import {
 import {
   Card, Metric, Text, Grid, Title, Subtitle,
 } from "@tremor/react";
+import { useState, useMemo } from "react";
+import { Flex } from "@tremor/react";
 import DataTable from "@/components/DataTable";
 import StatusBadge from "@/components/StatusBadge";
+import PeriodSelector from "@/components/PeriodSelector";
 import { formatCurrency } from "@/lib/format";
 import { useCompanyFetch } from "@/lib/useCompanyFetch";
 
@@ -17,7 +20,9 @@ import { useCompanyFetch } from "@/lib/useCompanyFetch";
 type R = Record<string, any>;
 
 export default function CustomersPage() {
-  const data = useCompanyFetch<Record<string, unknown>>("/api/customers");
+  const [period, setPeriod] = useState("trailing6");
+  const params = useMemo(() => ({ period }), [period]);
+  const data = useCompanyFetch<Record<string, unknown>>("/api/customers", params);
 
   const d = data as Record<string, unknown> || {};
   const rankings = (d.rankings as R[]) || [];
@@ -38,10 +43,13 @@ export default function CustomersPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <Title>Customers</Title>
-        <Text>Customer performance, margins, and intelligence</Text>
-      </div>
+      <Flex justifyContent="between" alignItems="end">
+        <div>
+          <Title>Customers</Title>
+          <Text>Customer performance, margins, and intelligence — {(d.periodLabel as string) || "Last 6 months"}</Text>
+        </div>
+        <PeriodSelector value={period} onChange={setPeriod} />
+      </Flex>
 
       <Grid numItemsSm={2} numItemsLg={4} className="gap-4">
         <Card decoration="top" decorationColor="blue">
@@ -51,7 +59,7 @@ export default function CustomersPage() {
         <Card decoration="top" decorationColor="emerald">
           <Text>Top Customer Revenue</Text>
           <Metric>{topRevenue}</Metric>
-          <Text className="mt-1">Current quarter</Text>
+          <Text className="mt-1">{(d.periodLabel as string) || ""}</Text>
         </Card>
         <Card decoration="top" decorationColor="cyan">
           <Text>Avg Margin</Text>

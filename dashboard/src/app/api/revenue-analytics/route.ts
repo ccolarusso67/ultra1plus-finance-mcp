@@ -1,36 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
-
-function parsePeriod(period: string): { start: string; end: string; label: string } {
-  // Quarter: 2025Q4
-  const qMatch = period.match(/^(\d{4})Q([1-4])$/);
-  if (qMatch) {
-    const year = parseInt(qMatch[1]);
-    const q = parseInt(qMatch[2]);
-    const startMonth = (q - 1) * 3 + 1;
-    const start = `${year}-${String(startMonth).padStart(2, "0")}-01`;
-    const endDate = new Date(year, startMonth + 2, 0); // last day of quarter
-    const end = `${year}-${String(startMonth + 2).padStart(2, "0")}-${endDate.getDate()}`;
-    return { start, end, label: `${year} Q${q}` };
-  }
-  // Full year: 2025
-  const yMatch = period.match(/^(\d{4})$/);
-  if (yMatch) {
-    return { start: `${yMatch[1]}-01-01`, end: `${yMatch[1]}-12-31`, label: yMatch[1] };
-  }
-  // Trailing months: trailing6, trailing12, trailing24
-  const tMatch = period.match(/^trailing(\d+)$/);
-  if (tMatch) {
-    const months = parseInt(tMatch[1]);
-    return { start: `CURRENT_DATE - INTERVAL '${months} months'`, end: `CURRENT_DATE`, label: `Last ${months} months` };
-  }
-  // Default: trailing 12
-  return { start: `CURRENT_DATE - INTERVAL '12 months'`, end: `CURRENT_DATE`, label: "Last 12 months" };
-}
-
-function isTrailing(period: string): boolean {
-  return period.startsWith("trailing") || (!period.match(/^\d{4}Q[1-4]$/) && !period.match(/^\d{4}$/));
-}
+import { parsePeriod, isTrailing } from "@/lib/periods";
 
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("company_id") || "u1p_ultrachem";

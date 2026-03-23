@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
+import { parsePeriod, isTrailing } from "@/lib/periods";
 
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("company_id") || "u1p_ultrachem";
+  const period = request.nextUrl.searchParams.get("period") || "trailing6";
+  const p = parsePeriod(period);
+  const trailing = isTrailing(period);
+
+  const dateFilter = trailing
+    ? `i.txn_date >= ${p.start} AND i.txn_date <= ${p.end}`
+    : `i.txn_date >= '${p.start}'::date AND i.txn_date <= '${p.end}'::date`;
 
   try {
     const [rankings, categoryRevenue, erosionAlerts] = await Promise.all([
-      // Product rankings
+      // Product rankings — period-aware
       query(`
         SELECT COALESCE(pc.name, il.description, il.sku) AS product_name,
                il.sku, pc.category,
@@ -22,22 +30,22 @@ export async function GET(request: NextRequest) {
         FROM invoice_lines il
         JOIN invoices i ON i.company_id = il.company_id AND i.txn_id = il.invoice_txn_id
         LEFT JOIN product_catalog pc ON pc.company_id = il.company_id AND pc.item_id = il.item_id
-        WHERE i.company_id = $1 AND i.txn_date >= CURRENT_DATE - INTERVAL '6 months'
+        WHERE i.company_id = $1 AND ${dateFilter}
         GROUP BY COALESCE(pc.name, il.description, il.sku), il.sku, pc.category
         ORDER BY revenue DESC
       `, [companyId]),
-      // Revenue by category
+      // Revenue by category — period-aware
       query(`
         SELECT COALESCE(pc.category, 'Other') AS category,
                ROUND(SUM(il.line_total)::numeric, 0) AS revenue
         FROM invoice_lines il
         JOIN invoices i ON i.company_id = il.company_id AND i.txn_id = il.invoice_txn_id
         LEFT JOIN product_catalog pc ON pc.company_id = il.company_id AND pc.item_id = il.item_id
-        WHERE i.company_id = $1 AND i.txn_date >= CURRENT_DATE - INTERVAL '6 months'
+        WHERE i.company_id = $1 AND ${dateFilter}
         GROUP BY COALESCE(pc.category, 'Other')
         ORDER BY revenue DESC
       `, [companyId]),
-      // Margin erosion
+      // Margin erosion (always uses 3-month vs prior 3-month comparison)
       query(`
         WITH recent AS (
           SELECT il.sku, COALESCE(pc.name, il.description) AS product_name,
@@ -81,6 +89,7 @@ export async function GET(request: NextRequest) {
       categoryRevenue,
       erosionAlerts,
       activeSkus: Number(activeSkus[0]?.count || 0),
+      periodLabel: p.label,
     });
   } catch (error) {
     console.error("Products API error:", error);

@@ -1,23 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
+import { parsePeriod, isTrailing } from "@/lib/periods";
 
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("company_id") || "u1p_ultrachem";
+  const period = request.nextUrl.searchParams.get("period") || "trailing6";
+  const p = parsePeriod(period);
+  const trailing = isTrailing(period);
+
+  const invoiceDateFilter = trailing
+    ? `i.txn_date >= ${p.start} AND i.txn_date <= ${p.end}`
+    : `i.txn_date >= '${p.start}'::date AND i.txn_date <= '${p.end}'::date`;
 
   try {
     const [rankings, declining, reorderAlerts] = await Promise.all([
-      // Customer rankings by revenue
+      // Customer rankings by revenue — period-aware
       query(`
-        SELECT customer_name, sales_amount AS revenue, cogs_amount AS cogs,
-               gross_margin, order_count,
-               CASE WHEN sales_amount > 0
-                    THEN ROUND((gross_margin / sales_amount * 100)::numeric, 1)
+        SELECT c.full_name AS customer_name,
+               ROUND(SUM(il.line_total)::numeric, 0) AS revenue,
+               ROUND(SUM(il.cost * il.quantity)::numeric, 0) AS cogs,
+               ROUND(SUM(il.line_total - il.cost * il.quantity)::numeric, 0) AS gross_margin,
+               COUNT(DISTINCT i.txn_id) AS order_count,
+               CASE WHEN SUM(il.line_total) > 0
+                    THEN ROUND((SUM(il.line_total - il.cost * il.quantity) / SUM(il.line_total) * 100)::numeric, 1)
                     ELSE 0 END AS margin_pct
-        FROM sales_by_customer
-        WHERE company_id = $1 AND period_start >= DATE_TRUNC('quarter', CURRENT_DATE)
-        ORDER BY sales_amount DESC
+        FROM invoice_lines il
+        JOIN invoices i ON i.company_id = il.company_id AND i.txn_id = il.invoice_txn_id
+        JOIN customers c ON c.company_id = i.company_id AND c.customer_id = i.customer_id
+        WHERE i.company_id = $1 AND ${invoiceDateFilter}
+        GROUP BY c.full_name
+        ORDER BY SUM(il.line_total) DESC
       `, [companyId]),
-      // Declining accounts
+      // Declining accounts (always uses 6-month comparison)
       query(`
         WITH recent AS (
           SELECT i.customer_id, c.full_name AS customer_name,
@@ -46,7 +60,7 @@ export async function GET(request: NextRequest) {
         WHERE p.revenue > r.revenue
         ORDER BY (p.revenue - r.revenue) DESC
       `, [companyId]),
-      // Reorder alerts
+      // Reorder alerts (always uses 18-month analysis)
       query(`
         WITH customer_orders AS (
           SELECT i.customer_id, c.full_name AS customer_name, i.txn_date,
@@ -86,6 +100,7 @@ export async function GET(request: NextRequest) {
       declining,
       reorderAlerts,
       activeCount: Number(activeCount[0]?.count || 0),
+      periodLabel: p.label,
     });
   } catch (error) {
     console.error("Customers API error:", error);
