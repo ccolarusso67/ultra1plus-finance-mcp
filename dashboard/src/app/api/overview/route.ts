@@ -31,7 +31,8 @@ export async function GET(request: NextRequest) {
                       ELSE 0 END AS margin_pct
           FROM monthly_pnl
           WHERE company_id = $1 AND report_basis = 'accrual'
-          ORDER BY month DESC LIMIT 12
+            AND month >= '2025-01-01'::date
+          ORDER BY month ASC
         `, [companyId]),
         // AR aging totals
         query(`
@@ -72,7 +73,7 @@ export async function GET(request: NextRequest) {
         ...kpis,
         net_position: Number(kpis?.total_ar || 0) - Number(kpis?.total_ap || 0),
       },
-      revenueTrend: revenueTrend.reverse(),
+      revenueTrend,
       arAging,
       apAging,
       overdueCustomers,
