@@ -3,10 +3,9 @@
 import { useState, useEffect } from "react";
 import {
   ComposedChart, Bar, Line,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  BarChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from "recharts";
 import {
-  BarChart as TremorBarChart,
   Card, Metric, Text, Flex, BadgeDelta, Grid, Title, Subtitle,
 } from "@tremor/react";
 import { Calendar } from "lucide-react";
@@ -19,7 +18,6 @@ import { useCompany } from "@/lib/company";
 type R = Record<string, any>;
 
 const currencyFormatter = (v: number) => `$${(v / 1000).toFixed(0)}K`;
-const pctFormatter = (v: number) => `${v}%`;
 
 export default function RevenuePage() {
   const { companyId } = useCompany();
@@ -51,6 +49,39 @@ export default function RevenuePage() {
   const marginByProduct = (a.marginByProduct as R[]) || [];
   const availablePeriods = (a.availablePeriods as R[]) || [];
   const periodLabel = (a.periodLabel as string) || "Last 12 months";
+
+  const monthlyPnlData = monthly
+    .filter((r: R) => {
+      const d = new Date(String(r.month));
+      return d >= new Date("2025-01-01");
+    })
+    .map((r: R) => ({
+      month: String(r.label),
+      Revenue: Number(r.income || 0),
+      COGS: Number(r.cogs || 0),
+      "Net Income": Number(r.net_income || 0),
+    }));
+
+  const quarterlyData = revenueByQuarter.map((r: R) => ({
+    quarter: String(r.label),
+    Revenue: Number(r.revenue || 0),
+  }));
+
+  const yoyData = yoy.map((r: R) => ({
+    month: String(r.label),
+    [String(new Date().getFullYear())]: Number(r.current_revenue || 0),
+    [String(new Date().getFullYear() - 1)]: Number(r.prior_revenue || 0),
+  }));
+
+  const marginByCustomerData = marginByCustomer.map((r: R) => ({
+    customer: String(r.customer_name),
+    "Margin %": Number(r.margin_pct || 0),
+  }));
+
+  const marginByProductData = marginByProduct.map((r: R) => ({
+    product: String(r.product_name),
+    "Margin %": Number(r.margin_pct || 0),
+  }));
 
   return (
     <div className="space-y-8">
@@ -99,25 +130,18 @@ export default function RevenuePage() {
       <Card>
         <Title>Monthly P&amp;L</Title>
         <Subtitle>Rolling year — Jan 2025 to present</Subtitle>
-        <TremorBarChart
-          className="mt-4 h-96"
-          data={monthly
-            .filter((r: R) => {
-              const d = new Date(String(r.month));
-              return d >= new Date("2025-01-01");
-            })
-            .map((r: R) => ({
-              month: String(r.label),
-              Revenue: Number(r.income || 0),
-              COGS: Number(r.cogs || 0),
-              "Net Income": Number(r.net_income || 0),
-            }))}
-          index="month"
-          categories={["Revenue", "COGS", "Net Income"]}
-          colors={["blue", "rose", "emerald"]}
-          valueFormatter={(v: number) => currencyFormatter(v)}
-          showAnimation
-        />
+        <ResponsiveContainer width="100%" height={384} className="mt-4">
+          <BarChart data={monthlyPnlData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+            <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+            <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} />
+            <Tooltip formatter={(v: number) => formatCurrency(v)} />
+            <Legend />
+            <Bar dataKey="Revenue" fill="#003A5C" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="COGS" fill="#C5221F" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="Net Income" fill="#137333" radius={[3, 3, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
       </Card>
 
       {/* === SECTION: Period Comparisons === */}
@@ -196,39 +220,34 @@ export default function RevenuePage() {
         <Card>
           <Title>Quarterly Revenue</Title>
           <Subtitle>All quarters</Subtitle>
-          <TremorBarChart
-            className="mt-4 h-40"
-            data={revenueByQuarter.map((r: R) => ({
-              quarter: String(r.label),
-              Revenue: Number(r.revenue || 0),
-            }))}
-            index="quarter"
-            categories={["Revenue"]}
-            colors={["blue"]}
-            valueFormatter={(v: number) => currencyFormatter(v)}
-            showAnimation
-          />
+          <ResponsiveContainer width="100%" height={160} className="mt-4">
+            <BarChart data={quarterlyData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+              <XAxis dataKey="quarter" tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} />
+              <Tooltip formatter={(v: number) => formatCurrency(v)} />
+              <Bar dataKey="Revenue" fill="#003A5C" radius={[3, 3, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </Card>
       </div>
 
-      {/* YoY Monthly Comparison Chart — KEEP Recharts (grouped bars) */}
+      {/* YoY Monthly Comparison Chart */}
       {yoy.length > 0 && (
         <Card>
           <Title>Year-over-Year Monthly Comparison</Title>
           <Subtitle>{`${new Date().getFullYear()} vs ${new Date().getFullYear() - 1} (same months)`}</Subtitle>
-          <TremorBarChart
-            className="mt-4 h-72"
-            data={yoy.map((r: R) => ({
-              month: String(r.label),
-              [String(new Date().getFullYear())]: Number(r.current_revenue || 0),
-              [String(new Date().getFullYear() - 1)]: Number(r.prior_revenue || 0),
-            }))}
-            index="month"
-            categories={[String(new Date().getFullYear()), String(new Date().getFullYear() - 1)]}
-            colors={["blue", "slate"]}
-            valueFormatter={(v: number) => currencyFormatter(v)}
-            showAnimation
-          />
+          <ResponsiveContainer width="100%" height={288} className="mt-4">
+            <BarChart data={yoyData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+              <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} />
+              <Tooltip formatter={(v: number) => formatCurrency(v)} />
+              <Legend />
+              <Bar dataKey={String(new Date().getFullYear())} fill="#003A5C" radius={[3, 3, 0, 0]} />
+              <Bar dataKey={String(new Date().getFullYear() - 1)} fill="#8E24AA" radius={[3, 3, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </Card>
       )}
 
@@ -364,37 +383,29 @@ export default function RevenuePage() {
         <Card>
           <Title>Margin by Customer</Title>
           <Subtitle>{`Top 15 by revenue — ${periodLabel}`}</Subtitle>
-          <TremorBarChart
-            className="mt-4 h-96"
-            data={marginByCustomer.map((r: R) => ({
-              customer: String(r.customer_name),
-              "Margin %": Number(r.margin_pct || 0),
-            }))}
-            index="customer"
-            categories={["Margin %"]}
-            colors={["emerald"]}
-            valueFormatter={(v: number) => pctFormatter(v)}
-            layout="vertical"
-            showAnimation
-          />
+          <ResponsiveContainer width="100%" height={384} className="mt-4">
+            <BarChart data={marginByCustomerData} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+              <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}%`} />
+              <YAxis type="category" dataKey="customer" tick={{ fontSize: 11 }} width={120} />
+              <Tooltip formatter={(v: number) => `${v}%`} />
+              <Bar dataKey="Margin %" fill="#137333" radius={[0, 3, 3, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </Card>
 
         <Card>
           <Title>Margin by Product</Title>
           <Subtitle>{`Top 15 by revenue — ${periodLabel}`}</Subtitle>
-          <TremorBarChart
-            className="mt-4 h-96"
-            data={marginByProduct.map((r: R) => ({
-              product: String(r.product_name),
-              "Margin %": Number(r.margin_pct || 0),
-            }))}
-            index="product"
-            categories={["Margin %"]}
-            colors={["cyan"]}
-            valueFormatter={(v: number) => pctFormatter(v)}
-            layout="vertical"
-            showAnimation
-          />
+          <ResponsiveContainer width="100%" height={384} className="mt-4">
+            <BarChart data={marginByProductData} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+              <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}%`} />
+              <YAxis type="category" dataKey="product" tick={{ fontSize: 11 }} width={120} />
+              <Tooltip formatter={(v: number) => `${v}%`} />
+              <Bar dataKey="Margin %" fill="#0098DB" radius={[0, 3, 3, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </Card>
       </div>
 

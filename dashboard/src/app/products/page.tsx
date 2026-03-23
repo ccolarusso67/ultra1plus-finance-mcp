@@ -1,7 +1,11 @@
 "use client";
 
 import {
-  BarChart, DonutChart,
+  BarChart, Bar,
+  PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+} from "recharts";
+import {
   Card, Metric, Text, Grid, Title, Subtitle,
 } from "@tremor/react";
 import DataTable from "@/components/DataTable";
@@ -12,7 +16,7 @@ import { useCompanyFetch } from "@/lib/useCompanyFetch";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type R = Record<string, any>;
 
-const currencyFormatter = (v: number) => `$${(v / 1000).toFixed(0)}K`;
+const DONUT_COLORS = ["#003A5C", "#0098DB", "#137333", "#64748B", "#C5221F", "#E37400", "#8E24AA", "#7F1D1D"];
 
 export default function ProductsPage() {
   const data = useCompanyFetch<Record<string, unknown>>("/api/products");
@@ -29,6 +33,17 @@ export default function ProductsPage() {
   const lowestMargin = rankings.length > 0
     ? [...rankings].sort((a, b) => Number(a.margin_pct) - Number(b.margin_pct))[0]
     : null;
+
+  const topProductData = rankings.slice(0, 12).map((r: R) => ({
+    product: String(r.product_name),
+    Revenue: Number(r.revenue || 0),
+    Margin: Number(r.gross_margin || 0),
+  }));
+
+  const donutData = categoryRevenue.map((r: R) => ({
+    name: String(r.category),
+    value: Number(r.revenue || 0),
+  }));
 
   return (
     <div className="space-y-6">
@@ -63,37 +78,42 @@ export default function ProductsPage() {
         <Card className="lg:col-span-2">
           <Title>Top Products by Revenue</Title>
           <Subtitle>Last 6 months</Subtitle>
-          <BarChart
-            className="mt-4 h-96"
-            data={rankings.slice(0, 12).map((r: R) => ({
-              product: String(r.product_name),
-              Revenue: Number(r.revenue || 0),
-              Margin: Number(r.gross_margin || 0),
-            }))}
-            index="product"
-            categories={["Revenue", "Margin"]}
-            colors={["blue", "emerald"]}
-            valueFormatter={(v: number) => currencyFormatter(v)}
-            layout="vertical"
-            showAnimation
-          />
+          <ResponsiveContainer width="100%" height={384} className="mt-4">
+            <BarChart data={topProductData} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+              <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} />
+              <YAxis type="category" dataKey="product" tick={{ fontSize: 11 }} width={140} />
+              <Tooltip formatter={(v: number) => formatCurrency(v)} />
+              <Legend />
+              <Bar dataKey="Revenue" fill="#003A5C" radius={[0, 3, 3, 0]} />
+              <Bar dataKey="Margin" fill="#137333" radius={[0, 3, 3, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </Card>
 
         {/* Category Donut */}
         <Card>
           <Title>Revenue by Category</Title>
-          <DonutChart
-            className="mt-6 h-72"
-            data={categoryRevenue.map((r: R) => ({
-              name: String(r.category),
-              value: Number(r.revenue || 0),
-            }))}
-            category="value"
-            index="name"
-            valueFormatter={(v: number) => formatCurrency(v)}
-            colors={["blue", "cyan", "emerald", "slate", "rose", "amber", "indigo", "violet"]}
-            showAnimation
-          />
+          <ResponsiveContainer width="100%" height={288} className="mt-6">
+            <PieChart>
+              <Pie
+                data={donutData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                innerRadius={60}
+                outerRadius={90}
+                paddingAngle={2}
+              >
+                {donutData.map((_, i) => (
+                  <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(v: number) => formatCurrency(v)} />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
         </Card>
       </div>
 

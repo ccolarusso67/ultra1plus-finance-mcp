@@ -1,7 +1,11 @@
 "use client";
 
 import {
-  BarChart, Card, Metric, Text, Flex, BadgeDelta, Grid, Title, Subtitle,
+  BarChart, Bar,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from "recharts";
+import {
+  Card, Metric, Text, Flex, BadgeDelta, Grid, Title, Subtitle,
 } from "@tremor/react";
 import DataTable from "@/components/DataTable";
 import StatusBadge from "@/components/StatusBadge";
@@ -10,8 +14,6 @@ import { useCompanyFetch } from "@/lib/useCompanyFetch";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type R = Record<string, any>;
-
-const currencyFormatter = (v: number) => `$${(v / 1000).toFixed(0)}K`;
 
 export default function SalesOrdersPage() {
   const data = useCompanyFetch<Record<string, unknown>>("/api/sales-orders");
@@ -25,6 +27,11 @@ export default function SalesOrdersPage() {
     byCustomer: R[];
     totals: R;
   };
+
+  const backlogData = byCustomer.map((r: R) => ({
+    customer: String(r.customer_name),
+    "Order Value": Number(r.total_value || 0),
+  }));
 
   return (
     <div className="space-y-6">
@@ -58,20 +65,15 @@ export default function SalesOrdersPage() {
       {/* Backlog by Customer */}
       <Card>
         <Title>Backlog by Customer</Title>
-        <BarChart
-          className="mt-4"
-          style={{ height: Math.max(200, byCustomer.length * 40) }}
-          data={byCustomer.map((r: R) => ({
-            customer: String(r.customer_name),
-            "Order Value": Number(r.total_value || 0),
-          }))}
-          index="customer"
-          categories={["Order Value"]}
-          colors={["blue"]}
-          valueFormatter={(v: number) => currencyFormatter(v)}
-          layout="vertical"
-          showAnimation
-        />
+        <ResponsiveContainer width="100%" height={Math.max(200, byCustomer.length * 40)} className="mt-4">
+          <BarChart data={backlogData} layout="vertical">
+            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+            <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} />
+            <YAxis type="category" dataKey="customer" tick={{ fontSize: 11 }} width={140} />
+            <Tooltip formatter={(v: number) => formatCurrency(v)} />
+            <Bar dataKey="Order Value" fill="#003A5C" radius={[0, 3, 3, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
       </Card>
 
       {/* Orders Table */}

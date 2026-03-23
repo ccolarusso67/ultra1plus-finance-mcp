@@ -1,9 +1,11 @@
 "use client";
 
 import {
-  AreaChart, BarChart, BarList, DonutChart,
+  BarChart, Bar, AreaChart, Area,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+} from "recharts";
+import {
   Card, Metric, Text, Flex, BadgeDelta, Bold, Grid, Title, Subtitle,
-  Legend,
 } from "@tremor/react";
 import DataTable from "@/components/DataTable";
 import StatusBadge from "@/components/StatusBadge";
@@ -22,9 +24,6 @@ interface OverviewData {
   recentPayments: R[];
 }
 
-const valueFormatter = (v: number) => `$${(v / 1000).toFixed(0)}K`;
-const pctFormatter = (v: number) => `${v}%`;
-
 export default function OverviewPage() {
   const data = useCompanyFetch<OverviewData>("/api/overview");
 
@@ -37,6 +36,26 @@ export default function OverviewPage() {
   const arBarList = arAging.slice(0, 8).map((r: R) => ({
     name: String(r.customer_name),
     value: Number(r.total_open_balance || 0),
+  }));
+
+  const agingChartData = arAging.map((r: R) => ({
+    customer: String(r.customer_name),
+    Current: Number(r.current_bucket || 0),
+    "1-30d": Number(r.days_1_30 || 0),
+    "31-60d": Number(r.days_31_60 || 0),
+    "61-90d": Number(r.days_61_90 || 0),
+    "91+d": Number(r.days_91_plus || 0),
+  }));
+
+  const revenueTrendData = revenueTrend.map((r: R) => ({
+    month: String(r.label),
+    Revenue: Number(r.revenue || 0),
+    "Gross Profit": Number(r.gross_profit || 0),
+  }));
+
+  const marginTrendData = revenueTrend.map((r: R) => ({
+    month: String(r.label),
+    "Margin %": Number(r.margin_pct || 0),
   }));
 
   return (
@@ -99,40 +118,47 @@ export default function OverviewPage() {
         <Card className="lg:col-span-2">
           <Title>Revenue Trend</Title>
           <Subtitle>Jan 2025 — present</Subtitle>
-          <AreaChart
-            className="mt-4 h-72"
-            data={revenueTrend.map((r: R) => ({
-              month: String(r.label),
-              Revenue: Number(r.revenue || 0),
-              "Gross Profit": Number(r.gross_profit || 0),
-            }))}
-            index="month"
-            categories={["Revenue", "Gross Profit"]}
-            colors={["blue", "emerald"]}
-            valueFormatter={valueFormatter}
-            showAnimation
-            curveType="monotone"
-          />
+          <ResponsiveContainer width="100%" height={288} className="mt-4">
+            <AreaChart data={revenueTrendData}>
+              <defs>
+                <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#0098DB" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#0098DB" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="colorGP" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#137333" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#137333" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+              <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} />
+              <Tooltip formatter={(v: number) => formatCurrency(v)} />
+              <Legend />
+              <Area type="monotone" dataKey="Revenue" stroke="#0098DB" fill="url(#colorRevenue)" strokeWidth={2} />
+              <Area type="monotone" dataKey="Gross Profit" stroke="#137333" fill="url(#colorGP)" strokeWidth={2} />
+            </AreaChart>
+          </ResponsiveContainer>
         </Card>
 
         <Card>
           <Title>Gross Margin %</Title>
           <Subtitle>Monthly trend</Subtitle>
-          <AreaChart
-            className="mt-4 h-72"
-            data={revenueTrend.map((r: R) => ({
-              month: String(r.label),
-              "Margin %": Number(r.margin_pct || 0),
-            }))}
-            index="month"
-            categories={["Margin %"]}
-            colors={["emerald"]}
-            valueFormatter={pctFormatter}
-            showAnimation
-            curveType="monotone"
-            minValue={0}
-            maxValue={60}
-          />
+          <ResponsiveContainer width="100%" height={288} className="mt-4">
+            <AreaChart data={marginTrendData}>
+              <defs>
+                <linearGradient id="colorMargin" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#137333" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#137333" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+              <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}%`} domain={[0, 60]} />
+              <Tooltip formatter={(v: number) => `${v}%`} />
+              <Area type="monotone" dataKey="Margin %" stroke="#137333" fill="url(#colorMargin)" strokeWidth={2} />
+            </AreaChart>
+          </ResponsiveContainer>
         </Card>
       </div>
 
@@ -141,24 +167,20 @@ export default function OverviewPage() {
         <Card>
           <Title>AR Aging by Customer</Title>
           <Subtitle>Top 10 by outstanding balance</Subtitle>
-          <BarChart
-            className="mt-4 h-80"
-            data={arAging.map((r: R) => ({
-              customer: String(r.customer_name),
-              Current: Number(r.current_bucket || 0),
-              "1-30d": Number(r.days_1_30 || 0),
-              "31-60d": Number(r.days_31_60 || 0),
-              "61-90d": Number(r.days_61_90 || 0),
-              "91+d": Number(r.days_91_plus || 0),
-            }))}
-            index="customer"
-            categories={["Current", "1-30d", "31-60d", "61-90d", "91+d"]}
-            colors={["emerald", "blue", "amber", "rose", "red"]}
-            valueFormatter={valueFormatter}
-            stack
-            layout="vertical"
-            showAnimation
-          />
+          <ResponsiveContainer width="100%" height={320} className="mt-4">
+            <BarChart data={agingChartData} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+              <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} />
+              <YAxis type="category" dataKey="customer" tick={{ fontSize: 11 }} width={120} />
+              <Tooltip formatter={(v: number) => formatCurrency(v)} />
+              <Legend />
+              <Bar dataKey="Current" stackId="a" fill="#137333" />
+              <Bar dataKey="1-30d" stackId="a" fill="#0098DB" />
+              <Bar dataKey="31-60d" stackId="a" fill="#E37400" />
+              <Bar dataKey="61-90d" stackId="a" fill="#C5221F" />
+              <Bar dataKey="91+d" stackId="a" fill="#7F1D1D" />
+            </BarChart>
+          </ResponsiveContainer>
         </Card>
 
         <Card>
@@ -168,12 +190,14 @@ export default function OverviewPage() {
             <Text><Bold>Customer</Bold></Text>
             <Text><Bold>Outstanding</Bold></Text>
           </Flex>
-          <BarList
-            data={arBarList}
-            valueFormatter={(v: number) => formatCurrency(v)}
-            className="mt-2"
-            color="blue"
-          />
+          <ResponsiveContainer width="100%" height={Math.max(200, arBarList.length * 36)} className="mt-2">
+            <BarChart data={arBarList} layout="vertical">
+              <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} />
+              <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={140} />
+              <Tooltip formatter={(v: number) => formatCurrency(v)} />
+              <Bar dataKey="value" fill="#0098DB" radius={[0, 3, 3, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </Card>
       </div>
 

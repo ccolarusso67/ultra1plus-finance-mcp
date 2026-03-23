@@ -1,7 +1,11 @@
 "use client";
 
 import {
-  BarChart, DonutChart,
+  BarChart, Bar,
+  PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+} from "recharts";
+import {
   Card, Metric, Text, Grid, Title, Subtitle,
 } from "@tremor/react";
 import DataTable from "@/components/DataTable";
@@ -11,6 +15,8 @@ import { useCompanyFetch } from "@/lib/useCompanyFetch";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type R = Record<string, any>;
+
+const DONUT_COLORS = ["#003A5C", "#0098DB", "#137333", "#64748B", "#C5221F", "#E37400", "#8E24AA", "#7F1D1D"];
 
 export default function InventoryPage() {
   const data = useCompanyFetch<Record<string, unknown>>("/api/inventory");
@@ -26,6 +32,17 @@ export default function InventoryPage() {
   };
 
   const belowReorder = items.filter((i) => i.below_reorder);
+
+  const donutData = byCategory.map((r: R) => ({
+    name: String(r.category),
+    value: Number(r.value || 0),
+  }));
+
+  const belowReorderData = belowReorder.map((i: R) => ({
+    item: String(i.name),
+    Available: Number(i.quantity_available || 0),
+    Shortfall: Math.max(0, Number(i.reorder_point || 0) - Number(i.quantity_available || 0)),
+  }));
 
   return (
     <div className="space-y-6">
@@ -57,18 +74,26 @@ export default function InventoryPage() {
         {/* Category Donut */}
         <Card>
           <Title>Inventory Value by Category</Title>
-          <DonutChart
-            className="mt-6 h-72"
-            data={byCategory.map((r: R) => ({
-              name: String(r.category),
-              value: Number(r.value || 0),
-            }))}
-            category="value"
-            index="name"
-            valueFormatter={(v: number) => formatCurrency(v)}
-            colors={["blue", "cyan", "emerald", "slate", "rose", "amber", "indigo", "violet"]}
-            showAnimation
-          />
+          <ResponsiveContainer width="100%" height={288} className="mt-6">
+            <PieChart>
+              <Pie
+                data={donutData}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                innerRadius={60}
+                outerRadius={90}
+                paddingAngle={2}
+              >
+                {donutData.map((_, i) => (
+                  <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(v: number) => formatCurrency(v)} />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
         </Card>
 
         {/* Below Reorder Bar */}
@@ -76,20 +101,17 @@ export default function InventoryPage() {
           <Title>Below Reorder Point</Title>
           <Subtitle>Items needing replenishment</Subtitle>
           {belowReorder.length > 0 ? (
-            <BarChart
-              className="mt-4"
-              style={{ height: Math.max(200, belowReorder.length * 35) }}
-              data={belowReorder.map((i: R) => ({
-                item: String(i.name),
-                Available: Number(i.quantity_available || 0),
-                Shortfall: Math.max(0, Number(i.reorder_point || 0) - Number(i.quantity_available || 0)),
-              }))}
-              index="item"
-              categories={["Available", "Shortfall"]}
-              colors={["cyan", "rose"]}
-              layout="vertical"
-              showAnimation
-            />
+            <ResponsiveContainer width="100%" height={Math.max(200, belowReorder.length * 35)} className="mt-4">
+              <BarChart data={belowReorderData} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                <XAxis type="number" tick={{ fontSize: 11 }} />
+                <YAxis type="category" dataKey="item" tick={{ fontSize: 11 }} width={140} />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="Available" fill="#0098DB" radius={[0, 3, 3, 0]} />
+                <Bar dataKey="Shortfall" fill="#C5221F" radius={[0, 3, 3, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           ) : (
             <div className="text-center py-8 text-muted-foreground text-sm">All items above reorder point</div>
           )}

@@ -1,7 +1,11 @@
 "use client";
 
 import {
-  BarChart, Card, Metric, Text, Flex, BadgeDelta, Grid, Title, Subtitle,
+  BarChart, Bar,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+} from "recharts";
+import {
+  Card, Metric, Text, Flex, BadgeDelta, Grid, Title, Subtitle,
 } from "@tremor/react";
 import DataTable from "@/components/DataTable";
 import StatusBadge from "@/components/StatusBadge";
@@ -10,8 +14,6 @@ import { useCompanyFetch } from "@/lib/useCompanyFetch";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type R = Record<string, any>;
-
-const currencyFormatter = (v: number) => `$${(v / 1000).toFixed(0)}K`;
 
 export default function PayablesPage() {
   const data = useCompanyFetch<Record<string, unknown>>("/api/ap-aging");
@@ -25,6 +27,15 @@ export default function PayablesPage() {
     openBills: R[];
     totals: R;
   };
+
+  const agingData = aging.map((r: R) => ({
+    vendor: String(r.vendor_name),
+    Current: Number(r.current_bucket || 0),
+    "1-30": Number(r.days_1_30 || 0),
+    "31-60": Number(r.days_31_60 || 0),
+    "61-90": Number(r.days_61_90 || 0),
+    "91+": Number(r.days_91_plus || 0),
+  }));
 
   return (
     <div className="space-y-6">
@@ -62,25 +73,20 @@ export default function PayablesPage() {
       {/* AP Aging */}
       <Card>
         <Title>AP Aging by Vendor</Title>
-        <BarChart
-          className="mt-4"
-          style={{ height: Math.max(250, aging.length * 40) }}
-          data={aging.map((r: R) => ({
-            vendor: String(r.vendor_name),
-            Current: Number(r.current_bucket || 0),
-            "1-30": Number(r.days_1_30 || 0),
-            "31-60": Number(r.days_31_60 || 0),
-            "61-90": Number(r.days_61_90 || 0),
-            "91+": Number(r.days_91_plus || 0),
-          }))}
-          index="vendor"
-          categories={["Current", "1-30", "31-60", "61-90", "91+"]}
-          colors={["emerald", "blue", "amber", "rose", "red"]}
-          valueFormatter={(v: number) => currencyFormatter(v)}
-          stack
-          layout="vertical"
-          showAnimation
-        />
+        <ResponsiveContainer width="100%" height={Math.max(250, aging.length * 40)} className="mt-4">
+          <BarChart data={agingData} layout="vertical">
+            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+            <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} />
+            <YAxis type="category" dataKey="vendor" tick={{ fontSize: 11 }} width={140} />
+            <Tooltip formatter={(v: number) => formatCurrency(v)} />
+            <Legend />
+            <Bar dataKey="Current" stackId="a" fill="#137333" />
+            <Bar dataKey="1-30" stackId="a" fill="#0098DB" />
+            <Bar dataKey="31-60" stackId="a" fill="#E37400" />
+            <Bar dataKey="61-90" stackId="a" fill="#C5221F" />
+            <Bar dataKey="91+" stackId="a" fill="#7F1D1D" />
+          </BarChart>
+        </ResponsiveContainer>
       </Card>
 
       {/* Open Bills */}

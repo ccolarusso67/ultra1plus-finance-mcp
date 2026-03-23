@@ -6,9 +6,10 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   Legend as ReLegend,
   LineChart as ReLineChart, Line,
+  BarChart, Bar,
+  PieChart, Pie, Cell,
 } from "recharts";
 import {
-  BarChart, DonutChart,
   Card, Metric, Text, Flex, Grid, Title, Subtitle,
 } from "@tremor/react";
 import {
@@ -22,7 +23,7 @@ import { useCompany } from "@/lib/company";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type R = Record<string, any>;
 
-const currencyFormatter = (v: number) => `$${(v / 1000).toFixed(0)}K`;
+const AGING_COLORS = ["#137333", "#0098DB", "#E37400", "#C5221F", "#7F1D1D"];
 
 function RiskBadge({ level }: { level: string }) {
   const colors: R = {
@@ -97,6 +98,32 @@ export default function CashPage() {
 
   const coverageRatio = k.coverage_ratio;
   const coverageType = coverageRatio >= 1.5 ? "positive" : coverageRatio >= 1 ? "neutral" : "negative";
+
+  const dailyCollectionsData = (c.daily || []).map((r: R) => ({
+    day: String(r.label),
+    Amount: Number(r.amount || 0),
+  }));
+
+  const arConcentrationData = (c.concentration || []).map((r: R) => ({
+    customer: String(r.customer_name),
+    Balance: Number(r.balance || 0),
+  }));
+
+  const upcomingBillsData = (p.timeline || []).map((r: R) => ({
+    week: String(r.label),
+    Amount: Number(r.amount || 0),
+  }));
+
+  const apConcentrationData = (p.concentration || []).map((r: R) => ({
+    vendor: String(r.vendor_name),
+    Balance: Number(r.balance || 0),
+  }));
+
+  const collectionsVsData = (l.collectionsVsObligations || []).map((r: R) => ({
+    month: String(r.label),
+    "Cash In": Number(r.collections || 0),
+    "Bills Due": Number(r.obligations || 0),
+  }));
 
   return (
     <div className="space-y-8">
@@ -215,18 +242,15 @@ export default function CashPage() {
       <Card>
         <Title>Daily Collections</Title>
         <Subtitle>{`Last ${days} days`}</Subtitle>
-        <BarChart
-          className="mt-4 h-72"
-          data={(c.daily || []).map((r: R) => ({
-            day: String(r.label),
-            Amount: Number(r.amount || 0),
-          }))}
-          index="day"
-          categories={["Amount"]}
-          colors={["emerald"]}
-          valueFormatter={(v: number) => formatCurrency(v)}
-          showAnimation
-        />
+        <ResponsiveContainer width="100%" height={288} className="mt-4">
+          <BarChart data={dailyCollectionsData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+            <XAxis dataKey="day" tick={{ fontSize: 11 }} />
+            <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} domain={[0, 100000]} />
+            <Tooltip formatter={(v: number) => formatCurrency(v)} />
+            <Bar dataKey="Amount" fill="#137333" radius={[3, 3, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -251,15 +275,25 @@ export default function CashPage() {
           <Title>AR Aging</Title>
           <Subtitle>{`Total: ${formatCurrency(Number(arBuckets.total || 0))}`}</Subtitle>
           <div className="mt-4 flex items-center gap-6">
-            <DonutChart
-              className="h-48 w-48"
-              data={arPieData}
-              category="value"
-              index="name"
-              valueFormatter={(v: number) => formatCurrency(v)}
-              colors={["emerald", "blue", "amber", "rose", "red"]}
-              showAnimation
-            />
+            <ResponsiveContainer width={192} height={192}>
+              <PieChart>
+                <Pie
+                  data={arPieData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={45}
+                  outerRadius={75}
+                  paddingAngle={2}
+                >
+                  {arPieData.map((_, i) => (
+                    <Cell key={i} fill={AGING_COLORS[i % AGING_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(v: number) => formatCurrency(v)} />
+              </PieChart>
+            </ResponsiveContainer>
             <div className="space-y-1.5 text-[12px]">
               {["Current", "1-30d", "31-60d", "61-90d", "91+d"].map((label, i) => {
                 const keys = ["current", "days_1_30", "days_31_60", "days_61_90", "days_91_plus"];
@@ -281,19 +315,15 @@ export default function CashPage() {
         <Card>
           <Title>AR Concentration</Title>
           <Subtitle>{`Top 10 = ${c.top10ArPct || 0}% of total AR`}</Subtitle>
-          <BarChart
-            className="mt-4 h-72"
-            data={(c.concentration || []).map((r: R) => ({
-              customer: String(r.customer_name),
-              Balance: Number(r.balance || 0),
-            }))}
-            index="customer"
-            categories={["Balance"]}
-            colors={["blue"]}
-            valueFormatter={(v: number) => currencyFormatter(v)}
-            layout="vertical"
-            showAnimation
-          />
+          <ResponsiveContainer width="100%" height={288} className="mt-4">
+            <BarChart data={arConcentrationData} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+              <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} />
+              <YAxis type="category" dataKey="customer" tick={{ fontSize: 11 }} width={120} />
+              <Tooltip formatter={(v: number) => formatCurrency(v)} />
+              <Bar dataKey="Balance" fill="#003A5C" radius={[0, 3, 3, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </Card>
 
         <Card>
@@ -328,33 +358,40 @@ export default function CashPage() {
         <Card>
           <Title>Upcoming Bills</Title>
           <Subtitle>Next 8 weeks by due date</Subtitle>
-          <BarChart
-            className="mt-4 h-72"
-            data={(p.timeline || []).map((r: R) => ({
-              week: String(r.label),
-              Amount: Number(r.amount || 0),
-            }))}
-            index="week"
-            categories={["Amount"]}
-            colors={["rose"]}
-            valueFormatter={(v: number) => currencyFormatter(v)}
-            showAnimation
-          />
+          <ResponsiveContainer width="100%" height={288} className="mt-4">
+            <BarChart data={upcomingBillsData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+              <XAxis dataKey="week" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} />
+              <Tooltip formatter={(v: number) => formatCurrency(v)} />
+              <Bar dataKey="Amount" fill="#C5221F" radius={[3, 3, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </Card>
 
         <Card>
           <Title>AP Aging</Title>
           <Subtitle>{`Total: ${formatCurrency(Number(apBuckets.total || 0))}`}</Subtitle>
           <div className="mt-4 flex items-center gap-6">
-            <DonutChart
-              className="h-48 w-48"
-              data={apPieData}
-              category="value"
-              index="name"
-              valueFormatter={(v: number) => formatCurrency(v)}
-              colors={["emerald", "blue", "amber", "rose", "red"]}
-              showAnimation
-            />
+            <ResponsiveContainer width={192} height={192}>
+              <PieChart>
+                <Pie
+                  data={apPieData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={45}
+                  outerRadius={75}
+                  paddingAngle={2}
+                >
+                  {apPieData.map((_, i) => (
+                    <Cell key={i} fill={AGING_COLORS[i % AGING_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(v: number) => formatCurrency(v)} />
+              </PieChart>
+            </ResponsiveContainer>
             <div className="space-y-1.5 text-[12px]">
               {["Current", "1-30d", "31-60d", "61-90d", "91+d"].map((label, i) => {
                 const keys = ["current", "days_1_30", "days_31_60", "days_61_90", "days_91_plus"];
@@ -376,19 +413,15 @@ export default function CashPage() {
         <Card>
           <Title>AP Concentration</Title>
           <Subtitle>{`Top 10 = ${p.top10ApPct || 0}% of total AP`}</Subtitle>
-          <BarChart
-            className="mt-4 h-72"
-            data={(p.concentration || []).map((r: R) => ({
-              vendor: String(r.vendor_name),
-              Balance: Number(r.balance || 0),
-            }))}
-            index="vendor"
-            categories={["Balance"]}
-            colors={["rose"]}
-            valueFormatter={(v: number) => currencyFormatter(v)}
-            layout="vertical"
-            showAnimation
-          />
+          <ResponsiveContainer width="100%" height={288} className="mt-4">
+            <BarChart data={apConcentrationData} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+              <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} />
+              <YAxis type="category" dataKey="vendor" tick={{ fontSize: 11 }} width={120} />
+              <Tooltip formatter={(v: number) => formatCurrency(v)} />
+              <Bar dataKey="Balance" fill="#C5221F" radius={[0, 3, 3, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </Card>
 
         <Card>
@@ -418,26 +451,24 @@ export default function CashPage() {
         <Text>Collections vs obligations, operating cash trends</Text>
       </div>
 
-      {/* Collections vs Obligations — Tremor BarChart (grouped) */}
+      {/* Collections vs Obligations — Recharts BarChart (grouped) */}
       <Card>
         <Title>Collections vs Obligations</Title>
         <Subtitle>Monthly, last 12 months</Subtitle>
-        <BarChart
-          className="mt-4 h-80"
-          data={(l.collectionsVsObligations || []).map((r: R) => ({
-            month: String(r.label),
-            "Cash In": Number(r.collections || 0),
-            "Bills Due": Number(r.obligations || 0),
-          }))}
-          index="month"
-          categories={["Cash In", "Bills Due"]}
-          colors={["emerald", "rose"]}
-          valueFormatter={(v: number) => currencyFormatter(v)}
-          showAnimation
-        />
+        <ResponsiveContainer width="100%" height={320} className="mt-4">
+          <BarChart data={collectionsVsData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+            <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+            <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} />
+            <Tooltip formatter={(v: number) => formatCurrency(v)} />
+            <ReLegend />
+            <Bar dataKey="Cash In" fill="#137333" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="Bills Due" fill="#C5221F" radius={[3, 3, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
       </Card>
 
-      {/* Operating Cash Trends — KEEP Recharts ComposedChart (multi-line) */}
+      {/* Operating Cash Trends — KEEP Recharts LineChart */}
       <Card>
         <Title>Operating Cash Trends</Title>
         <Subtitle>Collections, invoicing, and bills — last 12 months</Subtitle>

@@ -3,9 +3,10 @@
 import {
   ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ZAxis,
+  BarChart, Bar, Legend,
 } from "recharts";
 import {
-  BarChart, Card, Metric, Text, Grid, Title, Subtitle,
+  Card, Metric, Text, Grid, Title, Subtitle,
 } from "@tremor/react";
 import DataTable from "@/components/DataTable";
 import StatusBadge from "@/components/StatusBadge";
@@ -14,8 +15,6 @@ import { useCompanyFetch } from "@/lib/useCompanyFetch";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type R = Record<string, any>;
-
-const currencyFormatter = (v: number) => `$${(v / 1000).toFixed(0)}K`;
 
 export default function CustomersPage() {
   const data = useCompanyFetch<Record<string, unknown>>("/api/customers");
@@ -30,6 +29,12 @@ export default function CustomersPage() {
   const avgMargin = rankings.length > 0
     ? (rankings.reduce((s, r) => s + Number(r.margin_pct || 0), 0) / rankings.length).toFixed(1)
     : "0";
+
+  const topCustomerData = rankings.slice(0, 15).map((r: R) => ({
+    customer: String(r.customer_name),
+    Revenue: Number(r.revenue || 0),
+    "Gross Margin": Number(r.gross_margin || 0),
+  }));
 
   return (
     <div className="space-y-6">
@@ -62,20 +67,17 @@ export default function CustomersPage() {
       <Card>
         <Title>Top Customers by Revenue</Title>
         <Subtitle>Current quarter</Subtitle>
-        <BarChart
-          className="mt-4 h-96"
-          data={rankings.slice(0, 15).map((r: R) => ({
-            customer: String(r.customer_name),
-            Revenue: Number(r.revenue || 0),
-            "Gross Margin": Number(r.gross_margin || 0),
-          }))}
-          index="customer"
-          categories={["Revenue", "Gross Margin"]}
-          colors={["blue", "emerald"]}
-          valueFormatter={(v: number) => currencyFormatter(v)}
-          layout="vertical"
-          showAnimation
-        />
+        <ResponsiveContainer width="100%" height={384} className="mt-4">
+          <BarChart data={topCustomerData} layout="vertical">
+            <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+            <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} />
+            <YAxis type="category" dataKey="customer" tick={{ fontSize: 11 }} width={140} />
+            <Tooltip formatter={(v: number) => formatCurrency(v)} />
+            <Legend />
+            <Bar dataKey="Revenue" fill="#003A5C" radius={[0, 3, 3, 0]} />
+            <Bar dataKey="Gross Margin" fill="#137333" radius={[0, 3, 3, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
       </Card>
 
       {/* Customer Margin Scatter — KEEP Recharts (ScatterChart not in Tremor) */}
