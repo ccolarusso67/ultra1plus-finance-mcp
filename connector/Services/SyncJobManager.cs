@@ -55,13 +55,10 @@ public class SyncJobManager
             ["customer_sync"] = new CustomerSyncJob(_connectionString, companyId),
 
             // Core transaction sync (incremental by default, backfill when enabled)
-            // InvoiceSyncJob is multi-company aware
             ["invoice_sync"] = new InvoiceSyncJob(_connectionString, companyId),
-            // Payment/Bill/SalesOrder still use old constructor — companyId must be
-            // added to these jobs when they are refactored for multi-company
-            ["payment_sync"] = new PaymentSyncJob(_connectionString, backfillEnabled, backfillStartYear),
-            ["bill_sync"] = new BillSyncJob(_connectionString, backfillEnabled, backfillStartYear),
-            ["sales_order_sync"] = new SalesOrderSyncJob(_connectionString, backfillEnabled, backfillStartYear),
+            ["payment_sync"] = new PaymentSyncJob(_connectionString, backfillEnabled, backfillStartYear, companyId),
+            ["bill_sync"] = new BillSyncJob(_connectionString, backfillEnabled, backfillStartYear, companyId),
+            ["sales_order_sync"] = new SalesOrderSyncJob(_connectionString, backfillEnabled, backfillStartYear, companyId),
 
             // Product sync
             ["product_sync"] = new ProductSyncJob(_connectionString, companyId),

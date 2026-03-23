@@ -5,7 +5,7 @@ namespace U1PFinanceSync.Services.SyncJobs;
 
 /// <summary>
 /// Syncs sales orders from QuickBooks Desktop.
-/// Uses SalesOrderQuery qbXML request â returns open/modified sales orders.
+/// Uses SalesOrderQuery qbXML request — returns open/modified sales orders.
 ///
 /// Supports two modes:
 ///   - Incremental (default): queries last 7 days by ModifiedDateRangeFilter
@@ -15,15 +15,19 @@ namespace U1PFinanceSync.Services.SyncJobs;
 public class SalesOrderSyncJob : ISyncJob
 {
     public string Name => "sales_order_sync";
+    public string CompanyId => _companyId;
 
     private readonly string _connectionString;
+    private readonly string _companyId;
     private readonly bool _fullBackfill;
     private readonly int _backfillStartYear;
     private int _totalRecordsSynced;
 
-    public SalesOrderSyncJob(string connectionString, bool fullBackfill = false, int backfillStartYear = 2020)
+    public SalesOrderSyncJob(string connectionString, bool fullBackfill = false,
+        int backfillStartYear = 2020, string companyId = "u1p_ultrachem")
     {
         _connectionString = connectionString;
+        _companyId = companyId;
         _fullBackfill = fullBackfill;
         _backfillStartYear = backfillStartYear;
     }
@@ -95,11 +99,11 @@ public class SalesOrderSyncJob : ISyncJob
             var memo = so.Element("Memo")?.Value;
 
             await using var cmd = new NpgsqlCommand(@"
-                INSERT INTO sales_orders (txn_id, ref_number, customer_id, txn_date, ship_date,
+                INSERT INTO sales_orders (company_id, txn_id, ref_number, customer_id, txn_date, ship_date,
                     amount, is_fulfilled, is_closed, memo, last_synced_at)
-                VALUES (@txnId, @ref, @custId, @txnDate::date, @shipDate::date,
+                VALUES (@companyId, @txnId, @ref, @custId, @txnDate::date, @shipDate::date,
                     @amount, @fulfilled, @closed, @memo, NOW())
-                ON CONFLICT (txn_id) DO UPDATE SET
+                ON CONFLICT (company_id, txn_id) DO UPDATE SET
                     ref_number = EXCLUDED.ref_number,
                     ship_date = EXCLUDED.ship_date,
                     amount = EXCLUDED.amount,
@@ -108,6 +112,7 @@ public class SalesOrderSyncJob : ISyncJob
                     last_synced_at = NOW()
             ", conn);
 
+            cmd.Parameters.AddWithValue("companyId", _companyId);
             cmd.Parameters.AddWithValue("txnId", txnId);
             cmd.Parameters.AddWithValue("ref", (object?)refNumber ?? DBNull.Value);
             cmd.Parameters.AddWithValue("custId", (object?)customerId ?? DBNull.Value);
@@ -128,9 +133,10 @@ public class SalesOrderSyncJob : ISyncJob
             UPDATE sync_status SET
                 last_run_at = NOW(), last_success_at = NOW(),
                 records_synced = @count, status = 'success', error_message = NULL
-            WHERE job_name = 'sales_order_sync'
+            WHERE company_id = @companyId AND job_name = 'sales_order_sync'
         ", conn);
         statusCmd.Parameters.AddWithValue("count", _totalRecordsSynced);
+        statusCmd.Parameters.AddWithValue("companyId", _companyId);
         await statusCmd.ExecuteNonQueryAsync();
     }
 
