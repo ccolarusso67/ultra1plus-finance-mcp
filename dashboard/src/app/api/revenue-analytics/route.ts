@@ -5,7 +5,8 @@ import { parsePeriod, isTrailing } from "@/lib/periods";
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("company_id") || "u1p_ultrachem";
   const period = request.nextUrl.searchParams.get("period") || "trailing12";
-  const p = parsePeriod(period);
+  const includeCurrent = request.nextUrl.searchParams.get("includeCurrent") === "true";
+  const p = parsePeriod(period, includeCurrent);
   const trailing = isTrailing(period);
 
   // For trailing periods, use interval expressions; for fixed periods, use date literals

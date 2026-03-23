@@ -23,7 +23,8 @@ const DONUT_COLORS = ["#003A5C", "#0098DB", "#137333", "#64748B", "#C5221F", "#E
 
 export default function ProductsPage() {
   const [period, setPeriod] = useState("trailing6");
-  const params = useMemo(() => ({ period }), [period]);
+  const [includeCurrent, setIncludeCurrent] = useState(false);
+  const params = useMemo(() => ({ period, includeCurrent: String(includeCurrent) }), [period, includeCurrent]);
   const data = useCompanyFetch<Record<string, unknown>>("/api/products", params);
 
   const d2 = data as Record<string, unknown> || {};
@@ -57,7 +58,12 @@ export default function ProductsPage() {
           <Title>Products</Title>
           <Text>Product performance, margins, and alerts — {(d2.periodLabel as string) || "Last 6 months"}</Text>
         </div>
-        <PeriodSelector value={period} onChange={setPeriod} />
+        <PeriodSelector
+          value={period}
+          onChange={setPeriod}
+          includeCurrent={includeCurrent}
+          onIncludeCurrentChange={setIncludeCurrent}
+        />
       </Flex>
 
       <Grid numItemsSm={2} numItemsLg={4} className="gap-4">

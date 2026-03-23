@@ -5,7 +5,8 @@ import { parsePeriod, isTrailing } from "@/lib/periods";
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("company_id") || "u1p_ultrachem";
   const period = request.nextUrl.searchParams.get("period") || "trailing6";
-  const p = parsePeriod(period);
+  const includeCurrent = request.nextUrl.searchParams.get("includeCurrent") === "true";
+  const p = parsePeriod(period, includeCurrent);
   const trailing = isTrailing(period);
 
   const invoiceDateFilter = trailing
@@ -101,6 +102,7 @@ export async function GET(request: NextRequest) {
       reorderAlerts,
       activeCount: Number(activeCount[0]?.count || 0),
       periodLabel: p.label,
+      isPartial: p.isPartial,
     });
   } catch (error) {
     console.error("Customers API error:", error);

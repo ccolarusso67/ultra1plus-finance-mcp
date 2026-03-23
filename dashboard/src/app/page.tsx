@@ -14,7 +14,7 @@ import { useState, useMemo } from "react";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { useCompanyFetch } from "@/lib/useCompanyFetch";
 import PeriodSelector from "@/components/PeriodSelector";
-import { AlertTriangle, ShieldAlert, CheckCircle2, Brain, ArrowRight } from "lucide-react";
+import { AlertTriangle, ShieldAlert, CheckCircle2, Brain, ArrowRight, Clock } from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type R = Record<string, any>;
@@ -27,6 +27,7 @@ interface OverviewData {
   overdueCustomers: R[];
   recentPayments: R[];
   periodLabel?: string;
+  isPartial?: boolean;
 }
 
 interface InsightsData {
@@ -39,7 +40,8 @@ interface InsightsData {
 
 export default function OverviewPage() {
   const [period, setPeriod] = useState("trailing12");
-  const params = useMemo(() => ({ period }), [period]);
+  const [includeCurrent, setIncludeCurrent] = useState(false);
+  const params = useMemo(() => ({ period, includeCurrent: String(includeCurrent) }), [period, includeCurrent]);
   const data = useCompanyFetch<OverviewData>("/api/overview", params);
   const insightsData = useCompanyFetch<InsightsData>("/api/insights");
 
@@ -82,8 +84,26 @@ export default function OverviewPage() {
           <Title>Financial Overview</Title>
           <Text>Executive summary — {data?.periodLabel || "Last 12 months"}</Text>
         </div>
-        <PeriodSelector value={period} onChange={setPeriod} />
+        <PeriodSelector
+          value={period}
+          onChange={setPeriod}
+          includeCurrent={includeCurrent}
+          onIncludeCurrentChange={setIncludeCurrent}
+        />
       </Flex>
+
+      {/* Partial data warning */}
+      {data?.isPartial && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+          <Flex justifyContent="start" className="gap-2 items-center">
+            <Clock size={16} className="text-blue-500" />
+            <Text className="text-blue-700 text-sm">
+              <Bold>Incomplete period</Bold> — The selected period includes the current month which is still in progress.
+              Revenue, costs, and margins shown are partial and will change as more data syncs.
+            </Text>
+          </Flex>
+        </div>
+      )}
 
       {/* Financial Intelligence Banner */}
       {insightsData && (insightsData.insightCount.critical > 0 || insightsData.insightCount.warning > 0) && (

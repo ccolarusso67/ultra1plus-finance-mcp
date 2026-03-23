@@ -5,7 +5,8 @@ import { parsePeriod, isTrailing } from "@/lib/periods";
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("company_id") || "u1p_ultrachem";
   const period = request.nextUrl.searchParams.get("period") || "trailing12";
-  const p = parsePeriod(period);
+  const includeCurrent = request.nextUrl.searchParams.get("includeCurrent") === "true";
+  const p = parsePeriod(period, includeCurrent);
   const trailing = isTrailing(period);
 
   // Build date filter for monthly_pnl.month column
@@ -95,6 +96,7 @@ export async function GET(request: NextRequest) {
       overdueCustomers,
       recentPayments,
       periodLabel: p.label,
+      isPartial: p.isPartial,
     });
   } catch (error) {
     console.error("Overview API error:", error);

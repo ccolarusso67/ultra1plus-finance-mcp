@@ -20,10 +20,11 @@ const currencyFormatter = (v: number) => `$${(v / 1000).toFixed(0)}K`;
 
 export default function RevenuePage() {
   const [period, setPeriod] = useState("trailing12");
-  const params = useMemo(() => ({ period }), [period]);
+  const [includeCurrent, setIncludeCurrent] = useState(false);
+  const params = useMemo(() => ({ period, includeCurrent: String(includeCurrent) }), [period, includeCurrent]);
 
   const pnlData = useCompanyFetch<R>("/api/pnl");
-  const analyticsData = useCompanyFetch<R>("/api/revenue-analytics", params);
+  const analyticsData = useCompanyFetch<R>("/api/revenue-analytics", params) as R | null;
 
   const monthly = (pnlData?.monthly as R[]) || [];
   const ytd = (pnlData?.ytd as R) || {};
@@ -251,7 +252,12 @@ export default function RevenuePage() {
           <Title>Revenue Analytics</Title>
           <Text>Revenue breakdown by customer, product, and category — {periodLabel}</Text>
         </div>
-        <PeriodSelector value={period} onChange={setPeriod} />
+        <PeriodSelector
+          value={period}
+          onChange={setPeriod}
+          includeCurrent={includeCurrent}
+          onIncludeCurrentChange={setIncludeCurrent}
+        />
       </Flex>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
