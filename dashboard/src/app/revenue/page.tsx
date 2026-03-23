@@ -1,16 +1,18 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import {
   BarChart, Bar, AreaChart, Area, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
   ComposedChart,
 } from "recharts";
-import { TrendingUp, DollarSign, Percent, ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
+import { TrendingUp, DollarSign, Percent, ArrowUpRight, ArrowDownRight, Minus, Calendar } from "lucide-react";
 import KpiCard from "@/components/KpiCard";
 import ChartCard from "@/components/ChartCard";
 import DataTable from "@/components/DataTable";
 import { formatCurrency } from "@/lib/format";
 import { useCompanyFetch } from "@/lib/useCompanyFetch";
+import { useCompany } from "@/lib/company";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type R = Record<string, any>;
@@ -22,8 +24,20 @@ function ChangeIndicator({ value, suffix = "%" }: { value: number; suffix?: stri
 }
 
 export default function RevenuePage() {
+  const { companyId } = useCompany();
+  const [period, setPeriod] = useState("trailing12");
+  const [analyticsData, setAnalyticsData] = useState<R | null>(null);
+
   const pnlData = useCompanyFetch<R>("/api/pnl");
-  const analyticsData = useCompanyFetch<R>("/api/revenue-analytics");
+
+  // Fetch analytics with period param
+  useEffect(() => {
+    setAnalyticsData(null);
+    fetch(`/api/revenue-analytics?company_id=${encodeURIComponent(companyId)}&period=${encodeURIComponent(period)}`)
+      .then((r) => r.json())
+      .then((d) => { if (!d.error) setAnalyticsData(d); })
+      .catch(() => {});
+  }, [companyId, period]);
 
   const monthly = (pnlData?.monthly as R[]) || [];
   const ytd = (pnlData?.ytd as R) || {};
@@ -38,6 +52,8 @@ export default function RevenuePage() {
   const marginByMonth = (a.marginByMonth as R[]) || [];
   const marginByCustomer = (a.marginByCustomer as R[]) || [];
   const marginByProduct = (a.marginByProduct as R[]) || [];
+  const availablePeriods = (a.availablePeriods as R[]) || [];
+  const periodLabel = (a.periodLabel as string) || "Last 12 months";
 
   return (
     <div className="space-y-8">
@@ -165,14 +181,44 @@ export default function RevenuePage() {
       )}
 
       {/* === SECTION: Revenue Analytics === */}
-      <div className="pt-2">
-        <h2 className="text-lg font-semibold text-[#1A1A1A]">Revenue Analytics</h2>
-        <p className="text-[12px] text-[#5F6368] mt-0.5">Revenue breakdown by customer, product, and category (last 12 months)</p>
+      <div className="pt-2 flex items-end justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-[#1A1A1A]">Revenue Analytics</h2>
+          <p className="text-[12px] text-[#5F6368] mt-0.5">Revenue breakdown by customer, product, and category</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Calendar size={14} className="text-[#5F6368]" />
+          <select
+            value={period}
+            onChange={(e) => setPeriod(e.target.value)}
+            className="text-[13px] border border-[#E0E0E0] rounded px-3 py-1.5 bg-white text-[#1A1A1A] focus:outline-none focus:border-[#0098DB] cursor-pointer"
+          >
+            <optgroup label="Trailing">
+              <option value="trailing6">Last 6 months</option>
+              <option value="trailing12">Last 12 months</option>
+              <option value="trailing24">Last 24 months</option>
+            </optgroup>
+            <optgroup label="Quarters (closed)">
+              {availablePeriods
+                .filter((p: R) => p.value !== `${new Date().getFullYear()}Q${Math.ceil((new Date().getMonth() + 1) / 3)}`)
+                .map((p: R) => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+            </optgroup>
+            <optgroup label="Full Year">
+              {[...new Set(availablePeriods.map((p: R) => String(p.value).substring(0, 4)))]
+                .filter((y) => parseInt(y) < new Date().getFullYear())
+                .map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+            </optgroup>
+          </select>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Revenue by Customer */}
-        <ChartCard title="Revenue by Customer" subtitle="Top 25, last 12 months">
+        <ChartCard title="Revenue by Customer" subtitle="Top 25 — {periodLabel}">
           <DataTable
             columns={[
               { key: "customer_name", label: "Customer" },
@@ -192,7 +238,7 @@ export default function RevenuePage() {
         </ChartCard>
 
         {/* Revenue by Product */}
-        <ChartCard title="Revenue by Product" subtitle="Top 25, last 12 months">
+        <ChartCard title="Revenue by Product" subtitle="Top 25 — {periodLabel}">
           <DataTable
             columns={[
               { key: "product_name", label: "Product" },
@@ -253,7 +299,7 @@ export default function RevenuePage() {
 
       {/* Margin by Customer + Product */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartCard title="Margin by Customer" subtitle="Top 15 by revenue, last 12 months">
+        <ChartCard title="Margin by Customer" subtitle="Top 15 by revenue — {periodLabel}">
           <ResponsiveContainer width="100%" height={360}>
             <BarChart data={marginByCustomer} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
@@ -266,7 +312,7 @@ export default function RevenuePage() {
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Margin by Product" subtitle="Top 15 by revenue, last 12 months">
+        <ChartCard title="Margin by Product" subtitle="Top 15 by revenue — {periodLabel}">
           <ResponsiveContainer width="100%" height={360}>
             <BarChart data={marginByProduct} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />

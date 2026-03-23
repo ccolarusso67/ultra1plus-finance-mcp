@@ -1,8 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/db";
 
+function parsePeriod(period: string): { start: string; end: string; label: string } {
+  // Quarter: 2025Q4
+  const qMatch = period.match(/^(\d{4})Q([1-4])$/);
+  if (qMatch) {
+    const year = parseInt(qMatch[1]);
+    const q = parseInt(qMatch[2]);
+    const startMonth = (q - 1) * 3 + 1;
+    const start = `${year}-${String(startMonth).padStart(2, "0")}-01`;
+    const endDate = new Date(year, startMonth + 2, 0); // last day of quarter
+    const end = `${year}-${String(startMonth + 2).padStart(2, "0")}-${endDate.getDate()}`;
+    return { start, end, label: `${year} Q${q}` };
+  }
+  // Full year: 2025
+  const yMatch = period.match(/^(\d{4})$/);
+  if (yMatch) {
+    return { start: `${yMatch[1]}-01-01`, end: `${yMatch[1]}-12-31`, label: yMatch[1] };
+  }
+  // Trailing months: trailing6, trailing12, trailing24
+  const tMatch = period.match(/^trailing(\d+)$/);
+  if (tMatch) {
+    const months = parseInt(tMatch[1]);
+    return { start: `CURRENT_DATE - INTERVAL '${months} months'`, end: `CURRENT_DATE`, label: `Last ${months} months` };
+  }
+  // Default: trailing 12
+  return { start: `CURRENT_DATE - INTERVAL '12 months'`, end: `CURRENT_DATE`, label: "Last 12 months" };
+}
+
+function isTrailing(period: string): boolean {
+  return period.startsWith("trailing") || (!period.match(/^\d{4}Q[1-4]$/) && !period.match(/^\d{4}$/));
+}
+
 export async function GET(request: NextRequest) {
   const companyId = request.nextUrl.searchParams.get("company_id") || "u1p_ultrachem";
+  const period = request.nextUrl.searchParams.get("period") || "trailing12";
+  const p = parsePeriod(period);
+  const trailing = isTrailing(period);
+
+  // For trailing periods, use interval expressions; for fixed periods, use date literals
+  const dateFilterSql = trailing
+    ? `i.txn_date >= ${p.start} AND i.txn_date <= ${p.end}`
+    : `i.txn_date >= '${p.start}'::date AND i.txn_date <= '${p.end}'::date`;
+
+  // For margin queries (same filter)
+  const marginDateFilter = dateFilterSql;
 
   try {
     const [
@@ -15,8 +57,9 @@ export async function GET(request: NextRequest) {
       marginByMonth,
       marginByCustomer,
       marginByProduct,
+      availablePeriods,
     ] = await Promise.all([
-      // Revenue by Customer (last 12 months)
+      // Revenue by Customer (period-filtered)
       query(`
         SELECT c.full_name AS customer_name, i.customer_id,
                ROUND(SUM(il.line_total)::numeric, 0) AS revenue,
@@ -29,13 +72,13 @@ export async function GET(request: NextRequest) {
         FROM invoice_lines il
         JOIN invoices i ON i.company_id = il.company_id AND i.txn_id = il.invoice_txn_id
         JOIN customers c ON c.company_id = i.company_id AND c.customer_id = i.customer_id
-        WHERE i.company_id = $1 AND i.txn_date >= CURRENT_DATE - INTERVAL '12 months'
+        WHERE i.company_id = $1 AND ${dateFilterSql}
         GROUP BY c.full_name, i.customer_id
         ORDER BY revenue DESC
         LIMIT 25
       `, [companyId]),
 
-      // Revenue by Product (last 12 months)
+      // Revenue by Product (period-filtered)
       query(`
         SELECT COALESCE(pc.name, il.description, il.sku) AS product_name,
                il.sku, COALESCE(pc.category, 'Other') AS category,
@@ -49,13 +92,13 @@ export async function GET(request: NextRequest) {
         FROM invoice_lines il
         JOIN invoices i ON i.company_id = il.company_id AND i.txn_id = il.invoice_txn_id
         LEFT JOIN product_catalog pc ON pc.company_id = il.company_id AND pc.item_id = il.item_id
-        WHERE i.company_id = $1 AND i.txn_date >= CURRENT_DATE - INTERVAL '12 months'
+        WHERE i.company_id = $1 AND ${dateFilterSql}
         GROUP BY COALESCE(pc.name, il.description, il.sku), il.sku, COALESCE(pc.category, 'Other')
         ORDER BY revenue DESC
         LIMIT 25
       `, [companyId]),
 
-      // Revenue by Quarter (all time)
+      // Revenue by Quarter (all time — always show full history)
       query(`
         SELECT DATE_TRUNC('quarter', month)::date AS quarter,
                TO_CHAR(DATE_TRUNC('quarter', month), 'YYYY "Q"Q') AS label,
@@ -71,7 +114,7 @@ export async function GET(request: NextRequest) {
         ORDER BY quarter ASC
       `, [companyId]),
 
-      // QoQ Comparison (current quarter vs prior quarter)
+      // QoQ Comparison
       query(`
         WITH current_q AS (
           SELECT SUM(income) AS revenue, SUM(cogs) AS cogs, SUM(gross_profit) AS gross_profit
@@ -105,7 +148,7 @@ export async function GET(request: NextRequest) {
         FROM current_q c, prior_q p
       `, [companyId]),
 
-      // YoY Comparison (current year vs prior year, same months)
+      // YoY Comparison
       query(`
         WITH current_yr AS (
           SELECT TO_CHAR(month, 'Mon') AS mon, EXTRACT(MONTH FROM month) AS m,
@@ -163,7 +206,7 @@ export async function GET(request: NextRequest) {
         FROM ytd c, prior_ytd p
       `, [companyId]),
 
-      // Margin by Month (last 24 months for trend)
+      // Margin by Month (last 24 months)
       query(`
         SELECT TO_CHAR(month, 'Mon YY') AS label, month,
                ROUND(income::numeric, 0) AS revenue,
@@ -181,7 +224,7 @@ export async function GET(request: NextRequest) {
         LIMIT 24
       `, [companyId]),
 
-      // Margin by Customer (top 15 by revenue, last 12 months)
+      // Margin by Customer (period-filtered)
       query(`
         SELECT c.full_name AS customer_name,
                ROUND(SUM(il.line_total)::numeric, 0) AS revenue,
@@ -191,14 +234,14 @@ export async function GET(request: NextRequest) {
         FROM invoice_lines il
         JOIN invoices i ON i.company_id = il.company_id AND i.txn_id = il.invoice_txn_id
         JOIN customers c ON c.company_id = i.company_id AND c.customer_id = i.customer_id
-        WHERE i.company_id = $1 AND i.txn_date >= CURRENT_DATE - INTERVAL '12 months'
+        WHERE i.company_id = $1 AND ${marginDateFilter}
         GROUP BY c.full_name
         HAVING SUM(il.line_total) > 1000
         ORDER BY SUM(il.line_total) DESC
         LIMIT 15
       `, [companyId]),
 
-      // Margin by Product (top 15 by revenue, last 12 months)
+      // Margin by Product (period-filtered)
       query(`
         SELECT COALESCE(pc.name, il.description, il.sku) AS product_name,
                ROUND(SUM(il.line_total)::numeric, 0) AS revenue,
@@ -208,11 +251,21 @@ export async function GET(request: NextRequest) {
         FROM invoice_lines il
         JOIN invoices i ON i.company_id = il.company_id AND i.txn_id = il.invoice_txn_id
         LEFT JOIN product_catalog pc ON pc.company_id = il.company_id AND pc.item_id = il.item_id
-        WHERE i.company_id = $1 AND i.txn_date >= CURRENT_DATE - INTERVAL '12 months'
+        WHERE i.company_id = $1 AND ${marginDateFilter}
         GROUP BY COALESCE(pc.name, il.description, il.sku)
         HAVING SUM(il.line_total) > 1000
         ORDER BY SUM(il.line_total) DESC
         LIMIT 15
+      `, [companyId]),
+
+      // Available periods for the selector
+      query(`
+        SELECT DISTINCT TO_CHAR(DATE_TRUNC('quarter', month), 'YYYY "Q"Q') AS label,
+               TO_CHAR(DATE_TRUNC('quarter', month), 'YYYY') || 'Q' || EXTRACT(QUARTER FROM month) AS value,
+               DATE_TRUNC('quarter', month) AS sort_date
+        FROM monthly_pnl
+        WHERE company_id = $1 AND report_basis = 'accrual'
+        ORDER BY sort_date DESC
       `, [companyId]),
     ]);
 
@@ -226,6 +279,9 @@ export async function GET(request: NextRequest) {
       marginByMonth: marginByMonth.reverse(),
       marginByCustomer,
       marginByProduct,
+      availablePeriods,
+      selectedPeriod: period,
+      periodLabel: p.label,
     });
   } catch (error) {
     console.error("Revenue Analytics API error:", error);
