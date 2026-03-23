@@ -7,10 +7,12 @@ import {
 import {
   Card, Metric, Text, Flex, BadgeDelta, Bold, Grid, Title, Subtitle,
 } from "@tremor/react";
+import Link from "next/link";
 import DataTable from "@/components/DataTable";
 import StatusBadge from "@/components/StatusBadge";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { useCompanyFetch } from "@/lib/useCompanyFetch";
+import { AlertTriangle, ShieldAlert, CheckCircle2, Brain, ArrowRight } from "lucide-react";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type R = Record<string, any>;
@@ -24,8 +26,17 @@ interface OverviewData {
   recentPayments: R[];
 }
 
+interface InsightsData {
+  healthScore: number;
+  healthGrade: string;
+  healthLabel: string;
+  insightCount: { total: number; critical: number; warning: number; info: number; positive: number };
+  insights: { category: string; severity: string; title: string; detail: string; action: string }[];
+}
+
 export default function OverviewPage() {
   const data = useCompanyFetch<OverviewData>("/api/overview");
+  const insightsData = useCompanyFetch<InsightsData>("/api/insights");
 
   const kpis = data?.kpis || {};
   const revenueTrend = data?.revenueTrend || [];
@@ -65,6 +76,98 @@ export default function OverviewPage() {
         <Title>Financial Overview</Title>
         <Text>Executive summary — U1P Ultrachem financial performance</Text>
       </div>
+
+      {/* Financial Intelligence Banner */}
+      {insightsData && (insightsData.insightCount.critical > 0 || insightsData.insightCount.warning > 0) && (
+        <div className={`rounded-lg border p-4 ${
+          insightsData.insightCount.critical > 0
+            ? "bg-red-50 border-red-200"
+            : "bg-amber-50 border-amber-200"
+        }`}>
+          <Flex justifyContent="between" alignItems="center">
+            <Flex justifyContent="start" className="gap-3 items-center">
+              {insightsData.insightCount.critical > 0 ? (
+                <AlertTriangle size={20} className="text-red-600" />
+              ) : (
+                <ShieldAlert size={20} className="text-amber-600" />
+              )}
+              <div>
+                <span className={`font-semibold text-sm ${
+                  insightsData.insightCount.critical > 0 ? "text-red-800" : "text-amber-800"
+                }`}>
+                  Financial Health: {insightsData.healthGrade} ({insightsData.healthScore}/100)
+                </span>
+                <span className="text-sm text-gray-600 ml-2">
+                  — {insightsData.insightCount.critical > 0
+                    ? `${insightsData.insightCount.critical} critical issue${insightsData.insightCount.critical > 1 ? "s" : ""}`
+                    : ""
+                  }
+                  {insightsData.insightCount.critical > 0 && insightsData.insightCount.warning > 0 ? ", " : ""}
+                  {insightsData.insightCount.warning > 0
+                    ? `${insightsData.insightCount.warning} warning${insightsData.insightCount.warning > 1 ? "s" : ""}`
+                    : ""
+                  }
+                  {" "}requiring attention
+                </span>
+              </div>
+            </Flex>
+            <Link
+              href="/insights"
+              className={`flex items-center gap-1 text-sm font-medium px-3 py-1.5 rounded-md ${
+                insightsData.insightCount.critical > 0
+                  ? "bg-red-600 text-white hover:bg-red-700"
+                  : "bg-amber-500 text-white hover:bg-amber-600"
+              } transition-colors`}
+            >
+              <Brain size={14} />
+              View Insights
+              <ArrowRight size={14} />
+            </Link>
+          </Flex>
+          {/* Top 2 critical/warning insights preview */}
+          <div className="mt-3 space-y-1.5">
+            {insightsData.insights
+              .filter((i) => i.severity === "critical" || i.severity === "warning")
+              .slice(0, 2)
+              .map((insight, idx) => (
+                <div key={idx} className="flex items-start gap-2 text-sm">
+                  <span className={`font-medium ${
+                    insight.severity === "critical" ? "text-red-700" : "text-amber-700"
+                  }`}>
+                    •
+                  </span>
+                  <span className="text-gray-700">
+                    <Bold>{insight.title}:</Bold> {insight.detail.substring(0, 120)}
+                    {insight.detail.length > 120 ? "..." : ""}
+                  </span>
+                </div>
+              ))
+            }
+          </div>
+        </div>
+      )}
+
+      {/* Positive health banner */}
+      {insightsData && insightsData.insightCount.critical === 0 && insightsData.insightCount.warning === 0 && (
+        <div className="rounded-lg border bg-emerald-50 border-emerald-200 p-4">
+          <Flex justifyContent="between" alignItems="center">
+            <Flex justifyContent="start" className="gap-3 items-center">
+              <CheckCircle2 size={20} className="text-emerald-600" />
+              <span className="font-semibold text-sm text-emerald-800">
+                Financial Health: {insightsData.healthGrade} ({insightsData.healthScore}/100) — All systems healthy
+              </span>
+            </Flex>
+            <Link
+              href="/insights"
+              className="flex items-center gap-1 text-sm font-medium text-emerald-700 hover:text-emerald-800 transition-colors"
+            >
+              <Brain size={14} />
+              Full Report
+              <ArrowRight size={14} />
+            </Link>
+          </Flex>
+        </div>
+      )}
 
       {/* KPI Strip */}
       <Grid numItemsSm={2} numItemsLg={3} numItemsMd={3} className="gap-4">

@@ -14,11 +14,13 @@ import {
   Activity,
   Building2,
   Banknote,
+  Brain,
 } from "lucide-react";
 import { useCompany, COMPANIES } from "@/lib/company";
 
 const navItems = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
+  { href: "/insights", label: "Financial Intelligence", icon: Brain },
   { href: "/revenue", label: "Revenue & P&L", icon: TrendingUp },
   { href: "/cash", label: "Operational Cash", icon: Banknote },
   { href: "/customers", label: "Customers", icon: Users },
