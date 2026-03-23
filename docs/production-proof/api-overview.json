@@ -1,0 +1,255 @@
+{
+    "kpis": {
+        "total_ar": "3157593.06",
+        "total_ap": "985219.42",
+        "mtd_revenue": "0",
+        "mtd_margin_pct": "0",
+        "backlog_value": "768130.87",
+        "overdue_orders": "88",
+        "net_position": 2172373.64
+    },
+    "revenueTrend": [],
+    "arAging": [
+        {
+            "customer_name": "REDWOOD TRADING",
+            "current_bucket": "2073551.62",
+            "days_1_30": "43709.24",
+            "days_31_60": "422378.99",
+            "days_61_90": "305849.10",
+            "days_91_plus": "44997.52",
+            "total_open_balance": "2890486.47"
+        },
+        {
+            "customer_name": "U1DYNAMICS MANUFACTURING, LLC",
+            "current_bucket": "215400.18",
+            "days_1_30": "0.00",
+            "days_31_60": "0.00",
+            "days_61_90": "0.00",
+            "days_91_plus": "0.00",
+            "total_open_balance": "215400.18"
+        },
+        {
+            "customer_name": "MAXILUB LLC",
+            "current_bucket": "269116.02",
+            "days_1_30": "101674.65",
+            "days_31_60": "56825.45",
+            "days_61_90": "-244269.69",
+            "days_91_plus": "0.00",
+            "total_open_balance": "183346.43"
+        },
+        {
+            "customer_name": "COMPETITIVE EDGE DISTRIBUTING LLC",
+            "current_bucket": "119804.30",
+            "days_1_30": "34621.06",
+            "days_31_60": "-528.00",
+            "days_61_90": "0.00",
+            "days_91_plus": "779.20",
+            "total_open_balance": "154676.56"
+        },
+        {
+            "customer_name": "IMPORCARSA M&M S.A.",
+            "current_bucket": "68383.01",
+            "days_1_30": "0.00",
+            "days_31_60": "0.00",
+            "days_61_90": "0.00",
+            "days_91_plus": "0.00",
+            "total_open_balance": "68383.01"
+        },
+        {
+            "customer_name": "AUTOZONE.COM",
+            "current_bucket": "43435.28",
+            "days_1_30": "0.00",
+            "days_31_60": "0.00",
+            "days_61_90": "0.00",
+            "days_91_plus": "0.00",
+            "total_open_balance": "43435.28"
+        },
+        {
+            "customer_name": "TRACTOR SUPPLY",
+            "current_bucket": "29163.15",
+            "days_1_30": "11157.57",
+            "days_31_60": "1012.40",
+            "days_61_90": "-123.38",
+            "days_91_plus": "-1575.32",
+            "total_open_balance": "39634.42"
+        },
+        {
+            "customer_name": "M HYDRAULICS LTD.",
+            "current_bucket": "0.00",
+            "days_1_30": "25771.98",
+            "days_31_60": "0.00",
+            "days_61_90": "0.00",
+            "days_91_plus": "0.00",
+            "total_open_balance": "25771.98"
+        },
+        {
+            "customer_name": "BONTIRES ENTERPRISES VBA",
+            "current_bucket": "0.00",
+            "days_1_30": "19466.72",
+            "days_31_60": "0.00",
+            "days_61_90": "0.00",
+            "days_91_plus": "0.00",
+            "total_open_balance": "19466.72"
+        },
+        {
+            "customer_name": "ABC AUTO PARTS DC",
+            "current_bucket": "11716.80",
+            "days_1_30": "0.00",
+            "days_31_60": "0.00",
+            "days_61_90": "-1878.69",
+            "days_91_plus": "0.00",
+            "total_open_balance": "9838.11"
+        }
+    ],
+    "apAging": [
+        {
+            "vendor_name": "ROX BIOENERGY INV",
+            "current_bucket": "235069.05",
+            "days_1_30": "408165.51",
+            "days_31_60": "0.00",
+            "days_61_90": "0.00",
+            "days_91_plus": "0.00",
+            "total_open_balance": "643234.56"
+        },
+        {
+            "vendor_name": "EXXONMOBIL BASESTOCKS & SPECIALTIES",
+            "current_bucket": "0.00",
+            "days_1_30": "0.00",
+            "days_31_60": "0.00",
+            "days_61_90": "0.00",
+            "days_91_plus": "289465.44",
+            "total_open_balance": "289465.44"
+        },
+        {
+            "vendor_name": "ZXP TECH",
+            "current_bucket": "0.00",
+            "days_1_30": "0.00",
+            "days_31_60": "0.00",
+            "days_61_90": "0.00",
+            "days_91_plus": "157594.25",
+            "total_open_balance": "157594.25"
+        },
+        {
+            "vendor_name": "MidContinental",
+            "current_bucket": "0.00",
+            "days_1_30": "0.00",
+            "days_31_60": "87258.00",
+            "days_61_90": "617.64",
+            "days_91_plus": "0.00",
+            "total_open_balance": "87875.64"
+        },
+        {
+            "vendor_name": "PCA PACKAGING CORPORATION OF AMERICA",
+            "current_bucket": "56543.18",
+            "days_1_30": "-0.16",
+            "days_31_60": "0.00",
+            "days_61_90": "0.00",
+            "days_91_plus": "0.00",
+            "total_open_balance": "56543.02"
+        },
+        {
+            "vendor_name": "UNIVAR SOLUTIONS",
+            "current_bucket": "0.00",
+            "days_1_30": "39467.92",
+            "days_31_60": "10704.60",
+            "days_61_90": "0.00",
+            "days_91_plus": "0.00",
+            "total_open_balance": "50172.52"
+        },
+        {
+            "vendor_name": "WEBA TECHNOLOGY",
+            "current_bucket": "15237.00",
+            "days_1_30": "0.00",
+            "days_31_60": "15243.00",
+            "days_61_90": "0.00",
+            "days_91_plus": "0.00",
+            "total_open_balance": "30480.00"
+        },
+        {
+            "vendor_name": "UNISHIPPERS",
+            "current_bucket": "22527.05",
+            "days_1_30": "2.00",
+            "days_31_60": "0.00",
+            "days_61_90": "0.00",
+            "days_91_plus": "0.00",
+            "total_open_balance": "22529.05"
+        },
+        {
+            "vendor_name": "WAVE SABI",
+            "current_bucket": "9912.81",
+            "days_1_30": "0.00",
+            "days_31_60": "0.00",
+            "days_61_90": "0.00",
+            "days_91_plus": "0.00",
+            "total_open_balance": "9912.81"
+        },
+        {
+            "vendor_name": "SASA CARGO INC",
+            "current_bucket": "2618.00",
+            "days_1_30": "2810.00",
+            "days_31_60": "0.00",
+            "days_61_90": "0.00",
+            "days_91_plus": "0.00",
+            "total_open_balance": "5428.00"
+        }
+    ],
+    "overdueCustomers": [
+        {
+            "customer_name": "REDWOOD TRADING",
+            "total_open_balance": "2890486.47",
+            "overdue_amount": "773225.61"
+        },
+        {
+            "customer_name": "GRUPO DAHER S.A.",
+            "total_open_balance": "2888.43",
+            "overdue_amount": "2680.84"
+        },
+        {
+            "customer_name": "LOWES.COM",
+            "total_open_balance": "7525.95",
+            "overdue_amount": "2149.74"
+        },
+        {
+            "customer_name": "ALEX LOPEZ RAMIL",
+            "total_open_balance": "2053.75",
+            "overdue_amount": "2053.75"
+        },
+        {
+            "customer_name": "ONE STOP TRUCK AND & TRAILER PARTS INC",
+            "total_open_balance": "1572.00",
+            "overdue_amount": "1572.00"
+        }
+    ],
+    "recentPayments": [
+        {
+            "customer_name": "REDWOOD TRADING",
+            "payment_date": "2026-03-20T00:00:00.000Z",
+            "amount": "13986.26",
+            "payment_method": "ACH"
+        },
+        {
+            "customer_name": "RANEY'S",
+            "payment_date": "2026-03-20T00:00:00.000Z",
+            "amount": "6.86",
+            "payment_method": "ACH"
+        },
+        {
+            "customer_name": "NORTHERN TOOL",
+            "payment_date": "2026-03-20T00:00:00.000Z",
+            "amount": "4803.91",
+            "payment_method": "ACH"
+        },
+        {
+            "customer_name": "LOWES.COM",
+            "payment_date": "2026-03-20T00:00:00.000Z",
+            "amount": "1229.17",
+            "payment_method": "ACH"
+        },
+        {
+            "customer_name": "REDWOOD TRADING",
+            "payment_date": "2026-03-19T00:00:00.000Z",
+            "amount": "15000.00",
+            "payment_method": "ACH"
+        }
+    ]
+}

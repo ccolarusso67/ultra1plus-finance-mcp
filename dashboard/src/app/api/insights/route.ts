@@ -31,6 +31,14 @@ function pct(n: number): string {
   return `${n.toFixed(1)}%`;
 }
 
+// Safe query wrappers — never throw, return null/[] on error
+async function safeQueryOne(text: string, params?: unknown[]): Promise<any> {
+  try { return await queryOne(text, params); } catch { return null; }
+}
+async function safeQuery(text: string, params?: unknown[]): Promise<any[]> {
+  try { return await query(text, params); } catch { return []; }
+}
+
 export async function GET(request: NextRequest) {
   const companyId =
     request.nextUrl.searchParams.get("company_id") || "u1p_ultrachem";
@@ -55,7 +63,7 @@ export async function GET(request: NextRequest) {
       backlogInfo,
     ] = await Promise.all([
       // Current quarter P&L
-      queryOne(
+      safeQueryOne(
         `SELECT
            COALESCE(SUM(income), 0) AS revenue,
            COALESCE(SUM(cogs), 0) AS cogs,
@@ -72,7 +80,7 @@ export async function GET(request: NextRequest) {
       ),
 
       // Prior quarter P&L
-      queryOne(
+      safeQueryOne(
         `SELECT
            COALESCE(SUM(income), 0) AS revenue,
            COALESCE(SUM(gross_profit), 0) AS gross_profit,
@@ -87,7 +95,7 @@ export async function GET(request: NextRequest) {
       ),
 
       // Last 6 months margin trend
-      query(
+      safeQuery(
         `SELECT TO_CHAR(month, 'Mon YY') AS label, month,
                 income AS revenue,
                 CASE WHEN income > 0
@@ -102,7 +110,7 @@ export async function GET(request: NextRequest) {
       ),
 
       // AR summary
-      queryOne(
+      safeQueryOne(
         `SELECT
            COALESCE(SUM(total_open_balance), 0) AS total_ar,
            COALESCE(SUM(current_bucket), 0) AS current_ar,
@@ -116,7 +124,7 @@ export async function GET(request: NextRequest) {
       ),
 
       // AP summary
-      queryOne(
+      safeQueryOne(
         `SELECT
            COALESCE(SUM(total_open_balance), 0) AS total_ap,
            COALESCE(SUM(days_31_60), 0) AS ap_31_60,
@@ -128,7 +136,7 @@ export async function GET(request: NextRequest) {
       ),
 
       // Cash flow: last 30 day collections vs upcoming 30 day bills
-      queryOne(
+      safeQueryOne(
         `SELECT
            (SELECT COALESCE(SUM(amount), 0) FROM payments
             WHERE company_id = $1 AND payment_date >= CURRENT_DATE - 30) AS collections_30d,
@@ -146,7 +154,7 @@ export async function GET(request: NextRequest) {
       ),
 
       // AR concentration: top 5 % of total
-      query(
+      safeQuery(
         `WITH totals AS (
            SELECT COALESCE(SUM(total_open_balance), 0) AS total_ar
            FROM v_latest_ar_aging WHERE company_id = $1
@@ -162,7 +170,7 @@ export async function GET(request: NextRequest) {
       ),
 
       // Overdue AR totals
-      queryOne(
+      safeQueryOne(
         `SELECT
            COUNT(*) AS overdue_invoice_count,
            COALESCE(SUM(balance_remaining), 0) AS overdue_amount
@@ -172,7 +180,7 @@ export async function GET(request: NextRequest) {
       ),
 
       // Overdue AP
-      queryOne(
+      safeQueryOne(
         `SELECT
            COUNT(*) AS overdue_bill_count,
            COALESCE(SUM(balance_remaining), 0) AS overdue_amount
@@ -185,7 +193,7 @@ export async function GET(request: NextRequest) {
       ),
 
       // Declining customers
-      query(
+      safeQuery(
         `WITH recent AS (
            SELECT customer_id, SUM(amount) AS recent_rev
            FROM invoices
@@ -212,7 +220,7 @@ export async function GET(request: NextRequest) {
       ),
 
       // Margin erosion (products)
-      query(
+      safeQuery(
         `WITH recent AS (
            SELECT il.item_id,
                   SUM(il.line_total) AS rev,
@@ -246,7 +254,7 @@ export async function GET(request: NextRequest) {
       ),
 
       // Sync freshness
-      query(
+      safeQuery(
         `SELECT job_name, status, last_success_at,
                 ROUND(EXTRACT(EPOCH FROM (NOW() - last_success_at)) / 3600) AS hours_ago
          FROM sync_status
@@ -256,7 +264,7 @@ export async function GET(request: NextRequest) {
       ),
 
       // Credit holds
-      queryOne(
+      safeQueryOne(
         `SELECT COUNT(*) AS over_limit_count,
                 COALESCE(SUM(balance - credit_limit), 0) AS over_limit_amount
          FROM v_credit_status
@@ -265,7 +273,7 @@ export async function GET(request: NextRequest) {
       ),
 
       // Reorder alerts
-      queryOne(
+      safeQueryOne(
         `SELECT COUNT(*) AS count
          FROM v_latest_inventory
          WHERE company_id = $1 AND below_reorder`,
@@ -273,7 +281,7 @@ export async function GET(request: NextRequest) {
       ),
 
       // Average collection speed (DSO proxy)
-      queryOne(
+      safeQueryOne(
         `WITH rev AS (
            SELECT COALESCE(SUM(income), 0) / NULLIF(COUNT(*), 0) AS avg_monthly_rev
            FROM monthly_pnl
@@ -291,7 +299,7 @@ export async function GET(request: NextRequest) {
       ),
 
       // Backlog info
-      queryOne(
+      safeQueryOne(
         `SELECT
            COALESCE(SUM(amount), 0) AS total_backlog,
            COUNT(*) AS order_count,

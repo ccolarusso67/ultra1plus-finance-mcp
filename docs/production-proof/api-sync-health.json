@@ -1,0 +1,112 @@
+{
+    "jobs": [
+        {
+            "job_name": "ap_aging_sync",
+            "last_run_at": "2026-03-22T22:14:52.646Z",
+            "last_success_at": "2026-03-22T22:14:52.646Z",
+            "records_synced": 35,
+            "status": "success",
+            "error_message": null,
+            "minutes_ago": "126"
+        },
+        {
+            "job_name": "ar_aging_sync",
+            "last_run_at": "2026-03-22T22:14:50.499Z",
+            "last_success_at": "2026-03-22T22:14:50.499Z",
+            "records_synced": 85,
+            "status": "success",
+            "error_message": null,
+            "minutes_ago": "126"
+        },
+        {
+            "job_name": "bill_sync",
+            "last_run_at": "2026-03-22T22:14:19.361Z",
+            "last_success_at": "2026-03-22T22:14:19.361Z",
+            "records_synced": 64,
+            "status": "success",
+            "error_message": null,
+            "minutes_ago": "126"
+        },
+        {
+            "job_name": "customer_sync",
+            "last_run_at": "2026-03-22T22:13:47.990Z",
+            "last_success_at": "2026-03-22T22:13:47.990Z",
+            "records_synced": 4016,
+            "status": "success",
+            "error_message": null,
+            "minutes_ago": "127"
+        },
+        {
+            "job_name": "inventory_sync",
+            "last_run_at": "2026-03-22T22:14:55.981Z",
+            "last_success_at": "2026-03-22T22:14:55.981Z",
+            "records_synced": 561,
+            "status": "success",
+            "error_message": null,
+            "minutes_ago": "125"
+        },
+        {
+            "job_name": "invoice_sync",
+            "last_run_at": "2026-03-22T22:13:57.808Z",
+            "last_success_at": "2026-03-22T22:13:57.808Z",
+            "records_synced": 272,
+            "status": "success",
+            "error_message": null,
+            "minutes_ago": "126"
+        },
+        {
+            "job_name": "payment_sync",
+            "last_run_at": "2026-03-22T22:14:15.453Z",
+            "last_success_at": "2026-03-22T22:14:15.453Z",
+            "records_synced": 25,
+            "status": "success",
+            "error_message": null,
+            "minutes_ago": "126"
+        },
+        {
+            "job_name": "pnl_sync",
+            "last_run_at": null,
+            "last_success_at": null,
+            "records_synced": 0,
+            "status": "idle",
+            "error_message": null,
+            "minutes_ago": null
+        },
+        {
+            "job_name": "price_level_sync",
+            "last_run_at": "2026-03-22T15:41:32.662Z",
+            "last_success_at": "2026-03-22T15:41:32.662Z",
+            "records_synced": 0,
+            "status": "success",
+            "error_message": null,
+            "minutes_ago": "519"
+        },
+        {
+            "job_name": "product_sync",
+            "last_run_at": "2026-03-22T22:14:45.142Z",
+            "last_success_at": "2026-03-22T22:14:45.142Z",
+            "records_synced": 2545,
+            "status": "success",
+            "error_message": null,
+            "minutes_ago": "126"
+        },
+        {
+            "job_name": "sales_by_customer_sync",
+            "last_run_at": null,
+            "last_success_at": null,
+            "records_synced": 0,
+            "status": "idle",
+            "error_message": null,
+            "minutes_ago": null
+        },
+        {
+            "job_name": "sales_order_sync",
+            "last_run_at": "2026-03-22T22:14:26.486Z",
+            "last_success_at": "2026-03-22T22:14:26.486Z",
+            "records_synced": 0,
+            "status": "success",
+            "error_message": null,
+            "minutes_ago": "126"
+        }
+    ]
+}

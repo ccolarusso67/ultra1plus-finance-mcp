@@ -1,0 +1,336 @@
+{
+    "rankings": [],
+    "declining": [
+        {
+            "customer_name": "U1DYNAMICS MANUFACTURING, LLC",
+            "current_revenue": "2627254",
+            "prior_revenue": "2957627",
+            "decline_amount": "330373",
+            "decline_pct": "11.2"
+        },
+        {
+            "customer_name": "GRUPO DAHER S.A.",
+            "current_revenue": "129274",
+            "prior_revenue": "399467",
+            "decline_amount": "270193",
+            "decline_pct": "67.6"
+        },
+        {
+            "customer_name": "DIANCA S.A.",
+            "current_revenue": "70191",
+            "prior_revenue": "147160",
+            "decline_amount": "76968",
+            "decline_pct": "52.3"
+        },
+        {
+            "customer_name": "IMPORTADORA TREBOL, S.R.L.",
+            "current_revenue": "53045",
+            "prior_revenue": "113967",
+            "decline_amount": "60923",
+            "decline_pct": "53.5"
+        },
+        {
+            "customer_name": "PAGSA MAYOREO",
+            "current_revenue": "86057",
+            "prior_revenue": "146639",
+            "decline_amount": "60581",
+            "decline_pct": "41.3"
+        },
+        {
+            "customer_name": "COMPETITIVE EDGE DISTRIBUTING LLC",
+            "current_revenue": "465903",
+            "prior_revenue": "519838",
+            "decline_amount": "53936",
+            "decline_pct": "10.4"
+        },
+        {
+            "customer_name": "TRACTOR SUPPLY",
+            "current_revenue": "108277",
+            "prior_revenue": "157244",
+            "decline_amount": "48967",
+            "decline_pct": "31.1"
+        },
+        {
+            "customer_name": "PRO SUPPLY DISTRIBUTION",
+            "current_revenue": "8949",
+            "prior_revenue": "38257",
+            "decline_amount": "29308",
+            "decline_pct": "76.6"
+        },
+        {
+            "customer_name": "ARROW SHOP",
+            "current_revenue": "1348",
+            "prior_revenue": "27101",
+            "decline_amount": "25753",
+            "decline_pct": "95.0"
+        },
+        {
+            "customer_name": "BONTIRES ENTERPRISES VBA",
+            "current_revenue": "9483",
+            "prior_revenue": "34870",
+            "decline_amount": "25387",
+            "decline_pct": "72.8"
+        },
+        {
+            "customer_name": "LPS LLC",
+            "current_revenue": "15678",
+            "prior_revenue": "35325",
+            "decline_amount": "19647",
+            "decline_pct": "55.6"
+        },
+        {
+            "customer_name": "RICARDO SAMA",
+            "current_revenue": "3336",
+            "prior_revenue": "18299",
+            "decline_amount": "14964",
+            "decline_pct": "81.8"
+        },
+        {
+            "customer_name": "PREFERRED FUELING SERVICES, LLC",
+            "current_revenue": "28695",
+            "prior_revenue": "40661",
+            "decline_amount": "11966",
+            "decline_pct": "29.4"
+        },
+        {
+            "customer_name": "QWINEX / BZE",
+            "current_revenue": "4036",
+            "prior_revenue": "14893",
+            "decline_amount": "10857",
+            "decline_pct": "72.9"
+        },
+        {
+            "customer_name": "AGL INVEST LLC",
+            "current_revenue": "943",
+            "prior_revenue": "10402",
+            "decline_amount": "9459",
+            "decline_pct": "90.9"
+        },
+        {
+            "customer_name": "M HYDRAULICS LTD.",
+            "current_revenue": "5037",
+            "prior_revenue": "8951",
+            "decline_amount": "3915",
+            "decline_pct": "43.7"
+        },
+        {
+            "customer_name": "WET Garage",
+            "current_revenue": "1669",
+            "prior_revenue": "3213",
+            "decline_amount": "1544",
+            "decline_pct": "48.0"
+        },
+        {
+            "customer_name": "HRM SERVICES INC",
+            "current_revenue": "4739",
+            "prior_revenue": "6065",
+            "decline_amount": "1326",
+            "decline_pct": "21.9"
+        },
+        {
+            "customer_name": "ASARAY INTERNATIONAL",
+            "current_revenue": "2112",
+            "prior_revenue": "2573",
+            "decline_amount": "461",
+            "decline_pct": "17.9"
+        },
+        {
+            "customer_name": "ENRIQUE VALDEZ",
+            "current_revenue": "564",
+            "prior_revenue": "864",
+            "decline_amount": "300",
+            "decline_pct": "34.7"
+        },
+        {
+            "customer_name": "CLUTCH POWERSPORTS",
+            "current_revenue": "680",
+            "prior_revenue": "943",
+            "decline_amount": "263",
+            "decline_pct": "27.9"
+        },
+        {
+            "customer_name": "EL PINOSO FABRIL C.A.",
+            "current_revenue": "6338",
+            "prior_revenue": "6496",
+            "decline_amount": "157",
+            "decline_pct": "2.4"
+        },
+        {
+            "customer_name": "ALL MARINE SERVICES INC",
+            "current_revenue": "2510",
+            "prior_revenue": "2655",
+            "decline_amount": "145",
+            "decline_pct": "5.5"
+        },
+        {
+            "customer_name": "AMERICAN LANDMASTER",
+            "current_revenue": "76",
+            "prior_revenue": "190",
+            "decline_amount": "114",
+            "decline_pct": "60.0"
+        }
+    ],
+    "reorderAlerts": [
+        {
+            "customer_name": "GAM Capital LLC",
+            "avg_cycle_days": "30",
+            "last_order_date": "2025-01-23T00:00:00.000Z",
+            "days_since_last": 424,
+            "days_overdue": 394,
+            "avg_order_value": "0"
+        },
+        {
+            "customer_name": "INFORCA INTERNATIONAL",
+            "avg_cycle_days": "5",
+            "last_order_date": "2025-03-20T00:00:00.000Z",
+            "days_since_last": 368,
+            "days_overdue": 363,
+            "avg_order_value": "29852"
+        },
+        {
+            "customer_name": "C&S DELTRON CORP",
+            "avg_cycle_days": "39",
+            "last_order_date": "2025-07-03T00:00:00.000Z",
+            "days_since_last": 263,
+            "days_overdue": 224,
+            "avg_order_value": "2496"
+        },
+        {
+            "customer_name": "AMERICAN PETROLEUM CO., INC.",
+            "avg_cycle_days": "83",
+            "last_order_date": "2025-06-30T00:00:00.000Z",
+            "days_since_last": 266,
+            "days_overdue": 183,
+            "avg_order_value": "21280"
+        },
+        {
+            "customer_name": "THE YORK WAY",
+            "avg_cycle_days": "54",
+            "last_order_date": "2025-08-15T00:00:00.000Z",
+            "days_since_last": 220,
+            "days_overdue": 166,
+            "avg_order_value": "84"
+        },
+        {
+            "customer_name": "ARROW SHOP",
+            "avg_cycle_days": "34",
+            "last_order_date": "2025-09-29T00:00:00.000Z",
+            "days_since_last": 175,
+            "days_overdue": 141,
+            "avg_order_value": "17467"
+        },
+        {
+            "customer_name": "LPS LLC",
+            "avg_cycle_days": "35",
+            "last_order_date": "2025-09-30T00:00:00.000Z",
+            "days_since_last": 174,
+            "days_overdue": 139,
+            "avg_order_value": "16794"
+        },
+        {
+            "customer_name": "AMERICAN LANDMASTER",
+            "avg_cycle_days": "42",
+            "last_order_date": "2025-09-30T00:00:00.000Z",
+            "days_since_last": 174,
+            "days_overdue": 132,
+            "avg_order_value": "263"
+        },
+        {
+            "customer_name": "RICARDO SAMA",
+            "avg_cycle_days": "20",
+            "last_order_date": "2025-11-18T00:00:00.000Z",
+            "days_since_last": 125,
+            "days_overdue": 105,
+            "avg_order_value": "1435"
+        },
+        {
+            "customer_name": "EL PINOSO FABRIL C.A.",
+            "avg_cycle_days": "77",
+            "last_order_date": "2025-10-13T00:00:00.000Z",
+            "days_since_last": 161,
+            "days_overdue": 84,
+            "avg_order_value": "27376"
+        },
+        {
+            "customer_name": "TWISTED METRIC LLC",
+            "avg_cycle_days": "65",
+            "last_order_date": "2025-10-27T00:00:00.000Z",
+            "days_since_last": 147,
+            "days_overdue": 82,
+            "avg_order_value": "194"
+        },
+        {
+            "customer_name": "ADVANCE ADAPTERS",
+            "avg_cycle_days": "96",
+            "last_order_date": "2025-10-13T00:00:00.000Z",
+            "days_since_last": 161,
+            "days_overdue": 65,
+            "avg_order_value": "3751"
+        },
+        {
+            "customer_name": "PRO SUPPLY DISTRIBUTION",
+            "avg_cycle_days": "51",
+            "last_order_date": "2025-12-03T00:00:00.000Z",
+            "days_since_last": 110,
+            "days_overdue": 59,
+            "avg_order_value": "20611"
+        },
+        {
+            "customer_name": "IMPORCARSA M&M S.A.",
+            "avg_cycle_days": "51",
+            "last_order_date": "2025-12-23T00:00:00.000Z",
+            "days_since_last": 90,
+            "days_overdue": 39,
+            "avg_order_value": "69816"
+        },
+        {
+            "customer_name": "AUTOZONE.COM",
+            "avg_cycle_days": "0",
+            "last_order_date": "2026-02-26T00:00:00.000Z",
+            "days_since_last": 25,
+            "days_overdue": 25,
+            "avg_order_value": "67"
+        },
+        {
+            "customer_name": "NORTHERN TOOL",
+            "avg_cycle_days": "1",
+            "last_order_date": "2026-02-26T00:00:00.000Z",
+            "days_since_last": 25,
+            "days_overdue": 24,
+            "avg_order_value": "458"
+        },
+        {
+            "customer_name": "LOWES.COM",
+            "avg_cycle_days": "0",
+            "last_order_date": "2026-02-28T00:00:00.000Z",
+            "days_since_last": 23,
+            "days_overdue": 23,
+            "avg_order_value": "45"
+        },
+        {
+            "customer_name": "REDWOOD TRADING",
+            "avg_cycle_days": "5",
+            "last_order_date": "2026-02-26T00:00:00.000Z",
+            "days_since_last": 25,
+            "days_overdue": 20,
+            "avg_order_value": "50437"
+        },
+        {
+            "customer_name": "TEXAS AUTO PARTS",
+            "avg_cycle_days": "20",
+            "last_order_date": "2026-02-11T00:00:00.000Z",
+            "days_since_last": 40,
+            "days_overdue": 20,
+            "avg_order_value": "1767"
+        },
+        {
+            "customer_name": "QWINEX / BZE",
+            "avg_cycle_days": "60",
+            "last_order_date": "2026-01-07T00:00:00.000Z",
+            "days_since_last": 75,
+            "days_overdue": 15,
+            "avg_order_value": "3911"
+        }
+    ],
+    "activeCount": 3896
+}
