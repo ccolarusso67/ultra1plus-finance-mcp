@@ -1,18 +1,16 @@
 "use client";
 
 import {
-  PieChart, Pie, Cell, BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-} from "recharts";
-import { Warehouse, AlertTriangle, Package, Layers } from "lucide-react";
-import KpiCard from "@/components/KpiCard";
-import ChartCard from "@/components/ChartCard";
+  BarChart, DonutChart,
+  Card, Metric, Text, Grid, Title, Subtitle,
+} from "@tremor/react";
 import DataTable from "@/components/DataTable";
 import StatusBadge from "@/components/StatusBadge";
 import { formatCurrency, formatNumber } from "@/lib/format";
 import { useCompanyFetch } from "@/lib/useCompanyFetch";
 
-const COLORS = ["#003A5C", "#0098DB", "#137333", "#5F6368", "#C5221F", "#E37400", "#1A73E8", "#8E24AA"];
+/* eslint-disable @typescript-eslint/no-explicit-any */
+type R = Record<string, any>;
 
 export default function InventoryPage() {
   const data = useCompanyFetch<Record<string, unknown>>("/api/inventory");
@@ -22,9 +20,9 @@ export default function InventoryPage() {
   }
 
   const { items, byCategory, totals } = data as {
-    items: Record<string, unknown>[];
-    byCategory: Record<string, unknown>[];
-    totals: Record<string, unknown>;
+    items: R[];
+    byCategory: R[];
+    totals: R;
   };
 
   const belowReorder = items.filter((i) => i.below_reorder);
@@ -32,102 +30,104 @@ export default function InventoryPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-foreground">Inventory</h1>
-        <p className="text-[12px] text-muted-foreground mt-0.5">Stock levels, values, and reorder alerts</p>
+        <Title>Inventory</Title>
+        <Text>Stock levels, values, and reorder alerts</Text>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label="Total Value" value={formatCurrency(Number(totals?.total_value || 0))} icon={Warehouse} />
-        <KpiCard
-          label="Below Reorder"
-          value={String(totals?.below_reorder_count || 0)}
-          changeType={Number(totals?.below_reorder_count || 0) > 0 ? "negative" : "positive"}
-          icon={AlertTriangle}
-        />
-        <KpiCard label="On Sales Order" value={formatNumber(Number(totals?.total_on_order || 0))} icon={Package} />
-        <KpiCard label="Categories" value={String(totals?.category_count || 0)} icon={Layers} />
-      </div>
+      <Grid numItemsSm={2} numItemsLg={4} className="gap-4">
+        <Card decoration="top" decorationColor="blue">
+          <Text>Total Value</Text>
+          <Metric>{formatCurrency(Number(totals?.total_value || 0))}</Metric>
+        </Card>
+        <Card decoration="top" decorationColor={Number(totals?.below_reorder_count || 0) > 0 ? "rose" : "emerald"}>
+          <Text>Below Reorder</Text>
+          <Metric>{String(totals?.below_reorder_count || 0)}</Metric>
+        </Card>
+        <Card decoration="top" decorationColor="cyan">
+          <Text>On Sales Order</Text>
+          <Metric>{formatNumber(Number(totals?.total_on_order || 0))}</Metric>
+        </Card>
+        <Card decoration="top" decorationColor="amber">
+          <Text>Categories</Text>
+          <Metric>{String(totals?.category_count || 0)}</Metric>
+        </Card>
+      </Grid>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Category Donut */}
-        <ChartCard title="Inventory Value by Category">
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={byCategory}
-                dataKey="value"
-                nameKey="category"
-                cx="50%" cy="50%"
-                innerRadius={60} outerRadius={100}
-                paddingAngle={2}
-                label={({ category, percent }) => `${category} ${(percent * 100).toFixed(0)}%`}
-                labelLine={false}
-              >
-                {byCategory.map((_: unknown, i: number) => (
-                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(v: number) => formatCurrency(v)} />
-            </PieChart>
-          </ResponsiveContainer>
-        </ChartCard>
+        <Card>
+          <Title>Inventory Value by Category</Title>
+          <DonutChart
+            className="mt-6 h-72"
+            data={byCategory.map((r: R) => ({
+              name: String(r.category),
+              value: Number(r.value || 0),
+            }))}
+            category="value"
+            index="name"
+            valueFormatter={(v: number) => formatCurrency(v)}
+            colors={["blue", "cyan", "emerald", "slate", "rose", "amber", "indigo", "violet"]}
+            showAnimation
+          />
+        </Card>
 
         {/* Below Reorder Bar */}
-        <ChartCard title="Below Reorder Point" subtitle="Items needing replenishment" className="lg:col-span-2">
+        <Card className="lg:col-span-2">
+          <Title>Below Reorder Point</Title>
+          <Subtitle>Items needing replenishment</Subtitle>
           {belowReorder.length > 0 ? (
-            <ResponsiveContainer width="100%" height={Math.max(200, belowReorder.length * 35)}>
-              <BarChart
-                data={belowReorder.map((i) => ({
-                  name: i.name,
-                  available: Number(i.quantity_available),
-                  reorder_point: Number(i.reorder_point),
-                  shortfall: Math.max(0, Number(i.reorder_point) - Number(i.quantity_available)),
-                }))}
-                layout="vertical"
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
-                <XAxis type="number" tick={{ fontSize: 11 }} />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={220} />
-                <Tooltip />
-                <Bar dataKey="available" name="Available" fill="#0098DB" />
-                <Bar dataKey="shortfall" name="Shortfall" fill="#C5221F" />
-              </BarChart>
-            </ResponsiveContainer>
+            <BarChart
+              className="mt-4"
+              style={{ height: Math.max(200, belowReorder.length * 35) }}
+              data={belowReorder.map((i: R) => ({
+                item: String(i.name),
+                Available: Number(i.quantity_available || 0),
+                Shortfall: Math.max(0, Number(i.reorder_point || 0) - Number(i.quantity_available || 0)),
+              }))}
+              index="item"
+              categories={["Available", "Shortfall"]}
+              colors={["cyan", "rose"]}
+              layout="vertical"
+              showAnimation
+            />
           ) : (
             <div className="text-center py-8 text-muted-foreground text-sm">All items above reorder point</div>
           )}
-        </ChartCard>
+        </Card>
       </div>
 
       {/* Full Inventory Table */}
-      <ChartCard title="Inventory Detail">
-        <DataTable
-          columns={[
-            { key: "sku", label: "SKU" },
-            { key: "name", label: "Product" },
-            { key: "category", label: "Category" },
-            { key: "quantity_on_hand", label: "On Hand", align: "right", render: (r) => formatNumber(Number(r.quantity_on_hand)) },
-            { key: "quantity_on_sales_order", label: "On Order", align: "right", render: (r) => formatNumber(Number(r.quantity_on_sales_order)) },
-            { key: "quantity_available", label: "Available", align: "right", render: (r) => {
-              const avail = Number(r.quantity_available);
-              const reorder = Number(r.reorder_point);
-              return (
-                <span className={avail <= reorder && reorder > 0 ? "text-brand-danger font-semibold" : ""}>
-                  {formatNumber(avail)}
-                </span>
-              );
-            }},
-            { key: "reorder_point", label: "Reorder Pt", align: "right" },
-            { key: "asset_value", label: "Value", align: "right", render: (r) => formatCurrency(Number(r.asset_value)) },
-            { key: "below_reorder", label: "Status", render: (r) => (
-              r.below_reorder
-                ? <StatusBadge status="danger" label="Below Reorder" />
-                : <StatusBadge status="current" label="OK" />
-            )},
-          ]}
-          data={items}
-        />
-      </ChartCard>
+      <Card>
+        <Title>Inventory Detail</Title>
+        <div className="mt-4">
+          <DataTable
+            columns={[
+              { key: "sku", label: "SKU" },
+              { key: "name", label: "Product" },
+              { key: "category", label: "Category" },
+              { key: "quantity_on_hand", label: "On Hand", align: "right" as const, render: (r: R) => formatNumber(Number(r.quantity_on_hand)) },
+              { key: "quantity_on_sales_order", label: "On Order", align: "right" as const, render: (r: R) => formatNumber(Number(r.quantity_on_sales_order)) },
+              { key: "quantity_available", label: "Available", align: "right" as const, render: (r: R) => {
+                const avail = Number(r.quantity_available);
+                const reorder = Number(r.reorder_point);
+                return (
+                  <span className={avail <= reorder && reorder > 0 ? "text-brand-danger font-semibold" : ""}>
+                    {formatNumber(avail)}
+                  </span>
+                );
+              }},
+              { key: "reorder_point", label: "Reorder Pt", align: "right" as const },
+              { key: "asset_value", label: "Value", align: "right" as const, render: (r: R) => formatCurrency(Number(r.asset_value)) },
+              { key: "below_reorder", label: "Status", render: (r: R) => (
+                r.below_reorder
+                  ? <StatusBadge status="danger" label="Below Reorder" />
+                  : <StatusBadge status="current" label="OK" />
+              )},
+            ]}
+            data={items}
+          />
+        </div>
+      </Card>
     </div>
   );
 }

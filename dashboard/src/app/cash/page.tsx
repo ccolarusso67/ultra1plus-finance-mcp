@@ -2,17 +2,18 @@
 
 import { useState, useEffect } from "react";
 import {
-  BarChart, Bar, AreaChart, Area, ComposedChart, LineChart, Line,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
-  PieChart, Pie, Cell,
+  ComposedChart, Bar as ReBar, Line as ReLine,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  Legend as ReLegend,
+  LineChart as ReLineChart, Line,
 } from "recharts";
 import {
-  ArrowDownLeft, ArrowUpRight, Banknote, CreditCard,
-  AlertTriangle, ShieldAlert, Activity, TrendingUp, Calendar,
-  ClipboardList,
+  BarChart, DonutChart,
+  Card, Metric, Text, Flex, Grid, Title, Subtitle,
+} from "@tremor/react";
+import {
+  AlertTriangle, Calendar,
 } from "lucide-react";
-import KpiCard from "@/components/KpiCard";
-import ChartCard from "@/components/ChartCard";
 import DataTable from "@/components/DataTable";
 import StatusBadge from "@/components/StatusBadge";
 import { formatCurrency, formatDate } from "@/lib/format";
@@ -21,7 +22,7 @@ import { useCompany } from "@/lib/company";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type R = Record<string, any>;
 
-const AGING_COLORS = ["#137333", "#0098DB", "#E37400", "#C5221F", "#7F1D1D"];
+const currencyFormatter = (v: number) => `$${(v / 1000).toFixed(0)}K`;
 
 function RiskBadge({ level }: { level: string }) {
   const colors: R = {
@@ -102,11 +103,11 @@ export default function CashPage() {
       {/* Header + Date Range */}
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">Operational Cash</h1>
-          <p className="text-[12px] text-muted-foreground mt-0.5">
+          <Title>Operational Cash</Title>
+          <Text>
             Cash pressure, collections, obligations, and short-term liquidity
             <span className="ml-2 text-[10px] bg-[#FDE293] text-[#7F6000] px-1.5 py-0.5 rounded">Operational view — not a formal cash flow statement</span>
-          </p>
+          </Text>
         </div>
         <div className="flex items-center gap-2">
           <Calendar size={14} className="text-muted-foreground" />
@@ -137,91 +138,135 @@ export default function CashPage() {
       </div>
 
       {/* === KPI ROW === */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 xl:grid-cols-10 gap-3">
-        <KpiCard label="Cash In (7d)" value={formatCurrency(Number(k.cash_in_7d || 0))} icon={ArrowDownLeft} changeType="positive" />
-        <KpiCard label="Cash In (30d)" value={formatCurrency(Number(k.cash_in_30d || 0))} icon={ArrowDownLeft} changeType="positive" />
-        <KpiCard label="Bills Due (7d)" value={formatCurrency(Number(k.bills_due_7d || 0))} icon={ArrowUpRight} changeType="negative" />
-        <KpiCard label="Bills Due (30d)" value={formatCurrency(Number(k.bills_due_30d || 0))} icon={ArrowUpRight} changeType="negative" />
-        <KpiCard label="Net Pressure (30d)" value={formatCurrency(Number(k.net_cash_pressure_30d || 0))}
-          changeType={Number(k.net_cash_pressure_30d || 0) >= 0 ? "positive" : "negative"} icon={TrendingUp} />
-        <KpiCard label="Open AR" value={formatCurrency(Number(k.open_ar || 0))} icon={Banknote} />
-        <KpiCard label="Open AP" value={formatCurrency(Number(k.open_ap || 0))} icon={CreditCard} />
-        <KpiCard label="Backlog" value={formatCurrency(Number(k.backlog_value || 0))} icon={ClipboardList} />
-        <KpiCard label="AR > 90d" value={formatCurrency(Number(k.ar_over_90 || 0))} icon={AlertTriangle}
-          changeType={Number(k.ar_over_90 || 0) > 100000 ? "negative" : undefined} />
-        <KpiCard label="AP > 90d" value={formatCurrency(Number(k.ap_over_90 || 0))} icon={ShieldAlert}
-          changeType={Number(k.ap_over_90 || 0) > 100000 ? "negative" : undefined} />
-      </div>
+      <Grid numItemsSm={2} numItemsMd={5} numItemsLg={5} className="gap-3">
+        <Card decoration="top" decorationColor="emerald">
+          <Text>Cash In (7d)</Text>
+          <Metric>{formatCurrency(Number(k.cash_in_7d || 0))}</Metric>
+        </Card>
+        <Card decoration="top" decorationColor="emerald">
+          <Text>Cash In (30d)</Text>
+          <Metric>{formatCurrency(Number(k.cash_in_30d || 0))}</Metric>
+        </Card>
+        <Card decoration="top" decorationColor="rose">
+          <Text>Bills Due (7d)</Text>
+          <Metric>{formatCurrency(Number(k.bills_due_7d || 0))}</Metric>
+        </Card>
+        <Card decoration="top" decorationColor="rose">
+          <Text>Bills Due (30d)</Text>
+          <Metric>{formatCurrency(Number(k.bills_due_30d || 0))}</Metric>
+        </Card>
+        <Card decoration="top" decorationColor={Number(k.net_cash_pressure_30d || 0) >= 0 ? "emerald" : "rose"}>
+          <Text>Net Pressure (30d)</Text>
+          <Metric>{formatCurrency(Number(k.net_cash_pressure_30d || 0))}</Metric>
+        </Card>
+      </Grid>
+
+      <Grid numItemsSm={2} numItemsMd={5} numItemsLg={5} className="gap-3">
+        <Card decoration="top" decorationColor="blue">
+          <Text>Open AR</Text>
+          <Metric>{formatCurrency(Number(k.open_ar || 0))}</Metric>
+        </Card>
+        <Card decoration="top" decorationColor="blue">
+          <Text>Open AP</Text>
+          <Metric>{formatCurrency(Number(k.open_ap || 0))}</Metric>
+        </Card>
+        <Card decoration="top" decorationColor="cyan">
+          <Text>Backlog</Text>
+          <Metric>{formatCurrency(Number(k.backlog_value || 0))}</Metric>
+        </Card>
+        <Card decoration="top" decorationColor={Number(k.ar_over_90 || 0) > 100000 ? "rose" : "amber"}>
+          <Text>AR &gt; 90d</Text>
+          <Metric>{formatCurrency(Number(k.ar_over_90 || 0))}</Metric>
+        </Card>
+        <Card decoration="top" decorationColor={Number(k.ap_over_90 || 0) > 100000 ? "rose" : "amber"}>
+          <Text>AP &gt; 90d</Text>
+          <Metric>{formatCurrency(Number(k.ap_over_90 || 0))}</Metric>
+        </Card>
+      </Grid>
 
       {/* Coverage Ratio */}
-      <div className={`rounded-lg border px-6 py-4 flex items-center justify-between ${
-        coverageType === "positive" ? "bg-[#E6F4EA] border-[#137333]/20" :
-        coverageType === "neutral" ? "bg-[#FEF7E0] border-[#E37400]/20" :
-        "bg-[#FCE8E6] border-[#C5221F]/20"
-      }`}>
-        <div>
-          <span className="text-[12px] font-medium text-muted-foreground uppercase tracking-wider">30-Day Coverage Ratio</span>
-          <p className="text-[11px] text-muted-foreground mt-0.5">Cash In (30d) ÷ Bills Due (30d)</p>
-        </div>
-        <div className="text-right">
-          <span className={`text-2xl font-bold ${
-            coverageType === "positive" ? "text-brand-success" :
-            coverageType === "neutral" ? "text-brand-warning" : "text-brand-danger"
-          }`}>{coverageRatio !== null && coverageRatio !== undefined ? `${coverageRatio}x` : "N/A"}</span>
-          <p className="text-[11px] text-muted-foreground">
-            {coverageRatio >= 1.5 ? "Healthy" : coverageRatio >= 1 ? "Tight" : coverageRatio !== null ? "Under pressure" : ""}
-          </p>
-        </div>
-      </div>
+      <Card decoration="top" decorationColor={coverageType === "positive" ? "emerald" : coverageType === "neutral" ? "amber" : "rose"}>
+        <Flex justifyContent="between" alignItems="center">
+          <div>
+            <Text className="uppercase tracking-wider font-medium">30-Day Coverage Ratio</Text>
+            <Text className="mt-0.5">Cash In (30d) / Bills Due (30d)</Text>
+          </div>
+          <div className="text-right">
+            <Metric className={
+              coverageType === "positive" ? "text-brand-success" :
+              coverageType === "neutral" ? "text-brand-warning" : "text-brand-danger"
+            }>
+              {coverageRatio !== null && coverageRatio !== undefined ? `${coverageRatio}x` : "N/A"}
+            </Metric>
+            <Text>
+              {coverageRatio >= 1.5 ? "Healthy" : coverageRatio >= 1 ? "Tight" : coverageRatio !== null ? "Under pressure" : ""}
+            </Text>
+          </div>
+        </Flex>
+      </Card>
 
       {/* === COLLECTIONS === */}
       <div className="pt-2">
-        <h2 className="text-lg font-semibold text-foreground">Collections</h2>
-        <p className="text-[12px] text-muted-foreground mt-0.5">Cash inflows, payment trends, and receivable aging</p>
+        <Title>Collections</Title>
+        <Text>Cash inflows, payment trends, and receivable aging</Text>
       </div>
 
-      <ChartCard title="Daily Collections" subtitle={`Last ${days} days`}>
-        <ResponsiveContainer width="100%" height={280}>
-          <BarChart data={c.daily || []}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
-            <XAxis dataKey="label" tick={{ fontSize: 9 }} interval={Math.max(Math.floor((c.daily || []).length / 15), 1)} />
-            <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} domain={[0, 100000]} />
-            <Tooltip formatter={(v: number) => formatCurrency(v)} />
-            <Bar dataKey="amount" fill="#137333" radius={[1, 1, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </ChartCard>
+      {/* Daily Collections */}
+      <Card>
+        <Title>Daily Collections</Title>
+        <Subtitle>{`Last ${days} days`}</Subtitle>
+        <BarChart
+          className="mt-4 h-72"
+          data={(c.daily || []).map((r: R) => ({
+            day: String(r.label),
+            Amount: Number(r.amount || 0),
+          }))}
+          index="day"
+          categories={["Amount"]}
+          colors={["emerald"]}
+          valueFormatter={(v: number) => formatCurrency(v)}
+          showAnimation
+        />
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartCard title="Top Paying Customers" subtitle="Last 30 days">
-          <DataTable
-            columns={[
-              { key: "customer_name", label: "Customer" },
-              { key: "total_paid", label: "Collected", align: "right" as const,
-                render: (r: R) => <span className="font-semibold text-brand-success">{formatCurrency(Number(r.total_paid))}</span> },
-              { key: "payment_count", label: "#", align: "right" as const },
-            ]}
-            data={c.topCustomers || []}
-            pageSize={8}
-          />
-        </ChartCard>
+        <Card>
+          <Title>Top Paying Customers</Title>
+          <Subtitle>Last 30 days</Subtitle>
+          <div className="mt-4">
+            <DataTable
+              columns={[
+                { key: "customer_name", label: "Customer" },
+                { key: "total_paid", label: "Collected", align: "right" as const,
+                  render: (r: R) => <span className="font-semibold text-brand-success">{formatCurrency(Number(r.total_paid))}</span> },
+                { key: "payment_count", label: "#", align: "right" as const },
+              ]}
+              data={c.topCustomers || []}
+              pageSize={8}
+            />
+          </div>
+        </Card>
 
-        <ChartCard title="AR Aging" subtitle={`Total: ${formatCurrency(Number(arBuckets.total || 0))}`}>
-          <div className="flex items-center gap-4">
-            <ResponsiveContainer width="45%" height={200}>
-              <PieChart>
-                <Pie data={arPieData} dataKey="value" cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={2}>
-                  {arPieData.map((_, i) => <Cell key={i} fill={AGING_COLORS[i]} />)}
-                </Pie>
-                <Tooltip formatter={(v: number) => formatCurrency(v)} />
-              </PieChart>
-            </ResponsiveContainer>
+        <Card>
+          <Title>AR Aging</Title>
+          <Subtitle>{`Total: ${formatCurrency(Number(arBuckets.total || 0))}`}</Subtitle>
+          <div className="mt-4 flex items-center gap-6">
+            <DonutChart
+              className="h-48 w-48"
+              data={arPieData}
+              category="value"
+              index="name"
+              valueFormatter={(v: number) => formatCurrency(v)}
+              colors={["emerald", "blue", "amber", "rose", "red"]}
+              showAnimation
+            />
             <div className="space-y-1.5 text-[12px]">
               {["Current", "1-30d", "31-60d", "61-90d", "91+d"].map((label, i) => {
                 const keys = ["current", "days_1_30", "days_31_60", "days_61_90", "days_91_plus"];
+                const dotColors = ["#137333", "#0098DB", "#E37400", "#C5221F", "#7F1D1D"];
                 return (
                   <div key={label} className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: AGING_COLORS[i] }} />
+                    <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: dotColors[i] }} />
                     <span className="text-muted-foreground w-12">{label}</span>
                     <span className="font-medium">{formatCurrency(Number(arBuckets[keys[i]] || 0))}</span>
                   </div>
@@ -229,76 +274,94 @@ export default function CashPage() {
               })}
             </div>
           </div>
-        </ChartCard>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartCard title="AR Concentration" subtitle={`Top 10 = ${c.top10ArPct || 0}% of total AR`}>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={c.concentration || []} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
-              <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} />
-              <YAxis type="category" dataKey="customer_name" tick={{ fontSize: 10 }} width={150} />
-              <Tooltip formatter={(v: number) => formatCurrency(v)} />
-              <Bar dataKey="balance" fill="#003A5C" radius={[0, 2, 2, 0]}
-                label={{ position: "right", fontSize: 9, formatter: (v: number) => `${((c.concentration || []).find((r: R) => r.balance === v) || {}).pct_of_total || ''}%` }} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        <ChartCard title="Largest Overdue Invoices" subtitle="Past due, by balance">
-          <DataTable
-            columns={[
-              { key: "customer_name", label: "Customer" },
-              { key: "balance_remaining", label: "Balance", align: "right" as const,
-                render: (r: R) => <span className="font-semibold text-brand-danger">{formatCurrency(Number(r.balance_remaining))}</span> },
-              { key: "days_past_due", label: "Days", align: "right" as const,
-                render: (r: R) => {
-                  const d = Number(r.days_past_due);
-                  return <span className={d > 90 ? "text-brand-danger font-bold" : d > 30 ? "text-brand-warning font-medium" : ""}>{d}</span>;
-                }},
-            ]}
-            data={c.largestOverdue || []}
-            pageSize={8}
+        <Card>
+          <Title>AR Concentration</Title>
+          <Subtitle>{`Top 10 = ${c.top10ArPct || 0}% of total AR`}</Subtitle>
+          <BarChart
+            className="mt-4 h-72"
+            data={(c.concentration || []).map((r: R) => ({
+              customer: String(r.customer_name),
+              Balance: Number(r.balance || 0),
+            }))}
+            index="customer"
+            categories={["Balance"]}
+            colors={["blue"]}
+            valueFormatter={(v: number) => currencyFormatter(v)}
+            layout="vertical"
+            showAnimation
           />
-        </ChartCard>
+        </Card>
+
+        <Card>
+          <Title>Largest Overdue Invoices</Title>
+          <Subtitle>Past due, by balance</Subtitle>
+          <div className="mt-4">
+            <DataTable
+              columns={[
+                { key: "customer_name", label: "Customer" },
+                { key: "balance_remaining", label: "Balance", align: "right" as const,
+                  render: (r: R) => <span className="font-semibold text-brand-danger">{formatCurrency(Number(r.balance_remaining))}</span> },
+                { key: "days_past_due", label: "Days", align: "right" as const,
+                  render: (r: R) => {
+                    const d = Number(r.days_past_due);
+                    return <span className={d > 90 ? "text-brand-danger font-bold" : d > 30 ? "text-brand-warning font-medium" : ""}>{d}</span>;
+                  }},
+              ]}
+              data={c.largestOverdue || []}
+              pageSize={8}
+            />
+          </div>
+        </Card>
       </div>
 
       {/* === PAYABLES === */}
       <div className="pt-2">
-        <h2 className="text-lg font-semibold text-foreground">Payables & Obligations</h2>
-        <p className="text-[12px] text-muted-foreground mt-0.5">Upcoming bills, vendor exposure, and payment calendar</p>
+        <Title>Payables &amp; Obligations</Title>
+        <Text>Upcoming bills, vendor exposure, and payment calendar</Text>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartCard title="Upcoming Bills" subtitle="Next 8 weeks by due date">
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={p.timeline || []}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
-              <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} />
-              <Tooltip formatter={(v: number) => formatCurrency(v)} />
-              <Bar dataKey="amount" fill="#C5221F" radius={[2, 2, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
+        <Card>
+          <Title>Upcoming Bills</Title>
+          <Subtitle>Next 8 weeks by due date</Subtitle>
+          <BarChart
+            className="mt-4 h-72"
+            data={(p.timeline || []).map((r: R) => ({
+              week: String(r.label),
+              Amount: Number(r.amount || 0),
+            }))}
+            index="week"
+            categories={["Amount"]}
+            colors={["rose"]}
+            valueFormatter={(v: number) => currencyFormatter(v)}
+            showAnimation
+          />
+        </Card>
 
-        <ChartCard title="AP Aging" subtitle={`Total: ${formatCurrency(Number(apBuckets.total || 0))}`}>
-          <div className="flex items-center gap-4">
-            <ResponsiveContainer width="45%" height={200}>
-              <PieChart>
-                <Pie data={apPieData} dataKey="value" cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={2}>
-                  {apPieData.map((_, i) => <Cell key={i} fill={AGING_COLORS[i]} />)}
-                </Pie>
-                <Tooltip formatter={(v: number) => formatCurrency(v)} />
-              </PieChart>
-            </ResponsiveContainer>
+        <Card>
+          <Title>AP Aging</Title>
+          <Subtitle>{`Total: ${formatCurrency(Number(apBuckets.total || 0))}`}</Subtitle>
+          <div className="mt-4 flex items-center gap-6">
+            <DonutChart
+              className="h-48 w-48"
+              data={apPieData}
+              category="value"
+              index="name"
+              valueFormatter={(v: number) => formatCurrency(v)}
+              colors={["emerald", "blue", "amber", "rose", "red"]}
+              showAnimation
+            />
             <div className="space-y-1.5 text-[12px]">
               {["Current", "1-30d", "31-60d", "61-90d", "91+d"].map((label, i) => {
                 const keys = ["current", "days_1_30", "days_31_60", "days_61_90", "days_91_plus"];
+                const dotColors = ["#137333", "#0098DB", "#E37400", "#C5221F", "#7F1D1D"];
                 return (
                   <div key={label} className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: AGING_COLORS[i] }} />
+                    <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: dotColors[i] }} />
                     <span className="text-muted-foreground w-12">{label}</span>
                     <span className="font-medium">{formatCurrency(Number(apBuckets[keys[i]] || 0))}</span>
                   </div>
@@ -306,178 +369,214 @@ export default function CashPage() {
               })}
             </div>
           </div>
-        </ChartCard>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartCard title="AP Concentration" subtitle={`Top 10 = ${p.top10ApPct || 0}% of total AP`}>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={p.concentration || []} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
-              <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} />
-              <YAxis type="category" dataKey="vendor_name" tick={{ fontSize: 10 }} width={180} />
-              <Tooltip formatter={(v: number) => formatCurrency(v)} />
-              <Bar dataKey="balance" fill="#C5221F" radius={[0, 2, 2, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        <ChartCard title="Largest Unpaid Vendors" subtitle="By outstanding balance">
-          <DataTable
-            columns={[
-              { key: "vendor_name", label: "Vendor" },
-              { key: "balance", label: "Balance", align: "right" as const,
-                render: (r: R) => <span className="font-semibold">{formatCurrency(Number(r.balance))}</span> },
-              { key: "days_91_plus", label: ">90d", align: "right" as const,
-                render: (r: R) => Number(r.days_91_plus) > 0
-                  ? <span className="text-brand-danger font-medium">{formatCurrency(Number(r.days_91_plus))}</span>
-                  : <span className="text-muted-foreground">$0</span> },
-            ]}
-            data={p.largestVendors || []}
-            pageSize={10}
+        <Card>
+          <Title>AP Concentration</Title>
+          <Subtitle>{`Top 10 = ${p.top10ApPct || 0}% of total AP`}</Subtitle>
+          <BarChart
+            className="mt-4 h-72"
+            data={(p.concentration || []).map((r: R) => ({
+              vendor: String(r.vendor_name),
+              Balance: Number(r.balance || 0),
+            }))}
+            index="vendor"
+            categories={["Balance"]}
+            colors={["rose"]}
+            valueFormatter={(v: number) => currencyFormatter(v)}
+            layout="vertical"
+            showAnimation
           />
-        </ChartCard>
+        </Card>
+
+        <Card>
+          <Title>Largest Unpaid Vendors</Title>
+          <Subtitle>By outstanding balance</Subtitle>
+          <div className="mt-4">
+            <DataTable
+              columns={[
+                { key: "vendor_name", label: "Vendor" },
+                { key: "balance", label: "Balance", align: "right" as const,
+                  render: (r: R) => <span className="font-semibold">{formatCurrency(Number(r.balance))}</span> },
+                { key: "days_91_plus", label: ">90d", align: "right" as const,
+                  render: (r: R) => Number(r.days_91_plus) > 0
+                    ? <span className="text-brand-danger font-medium">{formatCurrency(Number(r.days_91_plus))}</span>
+                    : <span className="text-muted-foreground">$0</span> },
+              ]}
+              data={p.largestVendors || []}
+              pageSize={10}
+            />
+          </div>
+        </Card>
       </div>
 
       {/* === LIQUIDITY === */}
       <div className="pt-2">
-        <h2 className="text-lg font-semibold text-foreground">Liquidity & Pressure</h2>
-        <p className="text-[12px] text-muted-foreground mt-0.5">Collections vs obligations, operating cash trends</p>
+        <Title>Liquidity &amp; Pressure</Title>
+        <Text>Collections vs obligations, operating cash trends</Text>
       </div>
 
-      <ChartCard title="Collections vs Obligations" subtitle="Monthly, last 12 months">
-        <ResponsiveContainer width="100%" height={320}>
-          <ComposedChart data={l.collectionsVsObligations || []}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
-            <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-            <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} />
-            <Tooltip formatter={(v: number) => formatCurrency(v)} />
-            <Legend />
-            <Bar dataKey="collections" name="Cash In" fill="#137333" radius={[2, 2, 0, 0]} />
-            <Bar dataKey="obligations" name="Bills Due" fill="#C5221F" fillOpacity={0.7} radius={[2, 2, 0, 0]} />
-          </ComposedChart>
-        </ResponsiveContainer>
-      </ChartCard>
+      {/* Collections vs Obligations — Tremor BarChart (grouped) */}
+      <Card>
+        <Title>Collections vs Obligations</Title>
+        <Subtitle>Monthly, last 12 months</Subtitle>
+        <BarChart
+          className="mt-4 h-80"
+          data={(l.collectionsVsObligations || []).map((r: R) => ({
+            month: String(r.label),
+            "Cash In": Number(r.collections || 0),
+            "Bills Due": Number(r.obligations || 0),
+          }))}
+          index="month"
+          categories={["Cash In", "Bills Due"]}
+          colors={["emerald", "rose"]}
+          valueFormatter={(v: number) => currencyFormatter(v)}
+          showAnimation
+        />
+      </Card>
 
-      {/* Monthly trends: collections, invoicing, bills */}
-      <ChartCard title="Operating Cash Trends" subtitle="Collections, invoicing, and bills — last 12 months">
-        <ResponsiveContainer width="100%" height={320}>
-          <ComposedChart data={l.monthlyTrends || []}>
+      {/* Operating Cash Trends — KEEP Recharts ComposedChart (multi-line) */}
+      <Card>
+        <Title>Operating Cash Trends</Title>
+        <Subtitle>Collections, invoicing, and bills — last 12 months</Subtitle>
+        <ResponsiveContainer width="100%" height={320} className="mt-4">
+          <ReLineChart data={l.monthlyTrends || []}>
             <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
             <XAxis dataKey="label" tick={{ fontSize: 11 }} />
             <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} />
             <Tooltip formatter={(v: number) => formatCurrency(v)} />
-            <Legend />
+            <ReLegend />
             <Line type="monotone" dataKey="collections" name="Collections" stroke="#137333" strokeWidth={2} dot={{ r: 3 }} />
             <Line type="monotone" dataKey="invoiced" name="Invoiced" stroke="#003A5C" strokeWidth={2} dot={{ r: 3 }} />
             <Line type="monotone" dataKey="billed" name="Bills" stroke="#C5221F" strokeWidth={2} dot={{ r: 3 }} />
-          </ComposedChart>
+          </ReLineChart>
         </ResponsiveContainer>
-      </ChartCard>
+      </Card>
 
       {/* === BACKLOG === */}
       <div className="pt-2">
-        <h2 className="text-lg font-semibold text-foreground">Backlog & Conversion</h2>
-        <p className="text-[12px] text-muted-foreground mt-0.5">Open orders, invoicing pipeline, and order-to-cash conversion</p>
+        <Title>Backlog &amp; Conversion</Title>
+        <Text>Open orders, invoicing pipeline, and order-to-cash conversion</Text>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartCard title="Backlog by Customer" subtitle={`Total: ${formatCurrency(Number(k.backlog_value || 0))}`}>
+        <Card>
+          <Title>Backlog by Customer</Title>
+          <Subtitle>{`Total: ${formatCurrency(Number(k.backlog_value || 0))}`}</Subtitle>
           {(bl.byCustomer || []).length === 0 ? (
             <p className="text-[13px] text-muted-foreground py-8 text-center">No open sales orders</p>
           ) : (
-            <DataTable
-              columns={[
-                { key: "customer_name", label: "Customer" },
-                { key: "backlog_value", label: "Backlog", align: "right" as const,
-                  render: (r: R) => <span className="font-semibold">{formatCurrency(Number(r.backlog_value))}</span> },
-                { key: "order_count", label: "Orders", align: "right" as const },
-                { key: "oldest_order", label: "Oldest", render: (r: R) => formatDate(String(r.oldest_order)) },
-              ]}
-              data={bl.byCustomer || []}
-              pageSize={10}
-            />
+            <div className="mt-4">
+              <DataTable
+                columns={[
+                  { key: "customer_name", label: "Customer" },
+                  { key: "backlog_value", label: "Backlog", align: "right" as const,
+                    render: (r: R) => <span className="font-semibold">{formatCurrency(Number(r.backlog_value))}</span> },
+                  { key: "order_count", label: "Orders", align: "right" as const },
+                  { key: "oldest_order", label: "Oldest", render: (r: R) => formatDate(String(r.oldest_order)) },
+                ]}
+                data={bl.byCustomer || []}
+                pageSize={10}
+              />
+            </div>
           )}
-        </ChartCard>
+        </Card>
 
-        <ChartCard title="Monthly Invoicing" subtitle="Invoice volume and value, last 12 months">
-          <ResponsiveContainer width="100%" height={280}>
+        {/* Monthly Invoicing — KEEP Recharts ComposedChart (dual axis) */}
+        <Card>
+          <Title>Monthly Invoicing</Title>
+          <Subtitle>Invoice volume and value, last 12 months</Subtitle>
+          <ResponsiveContainer width="100%" height={280} className="mt-4">
             <ComposedChart data={bl.invoicingTrend || []}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
               <XAxis dataKey="label" tick={{ fontSize: 11 }} />
               <YAxis yAxisId="amt" tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} />
               <YAxis yAxisId="cnt" orientation="right" tick={{ fontSize: 11 }} />
               <Tooltip formatter={(v: number, name: string) => name === "Count" ? v : formatCurrency(v)} />
-              <Legend />
-              <Bar yAxisId="amt" dataKey="invoiced" name="Invoiced" fill="#003A5C" radius={[2, 2, 0, 0]} />
-              <Line yAxisId="cnt" type="monotone" dataKey="count" name="Count" stroke="#0098DB" strokeWidth={2} dot={{ r: 3 }} />
+              <ReLegend />
+              <ReBar yAxisId="amt" dataKey="invoiced" name="Invoiced" fill="#003A5C" radius={[2, 2, 0, 0]} />
+              <ReLine yAxisId="cnt" type="monotone" dataKey="count" name="Count" stroke="#0098DB" strokeWidth={2} dot={{ r: 3 }} />
             </ComposedChart>
           </ResponsiveContainer>
-        </ChartCard>
+        </Card>
       </div>
 
       {/* === RISK & ALERTS === */}
       <div className="pt-2">
-        <h2 className="text-lg font-semibold text-foreground">Risk & Alerts</h2>
-        <p className="text-[12px] text-muted-foreground mt-0.5">Overdue exposures, risk flags, and data freshness</p>
+        <Title>Risk &amp; Alerts</Title>
+        <Text>Overdue exposures, risk flags, and data freshness</Text>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartCard title="High-Risk Customers" subtitle="Large overdue balances">
+        <Card>
+          <Title>High-Risk Customers</Title>
+          <Subtitle>Large overdue balances</Subtitle>
           {(alerts.riskCustomers || []).length === 0 ? (
             <p className="text-[13px] text-brand-success py-4 text-center">No high-risk customers</p>
           ) : (
-            <DataTable
-              columns={[
-                { key: "customer_name", label: "Customer" },
-                { key: "overdue_amount", label: "Overdue", align: "right" as const,
-                  render: (r: R) => <span className="font-semibold">{formatCurrency(Number(r.overdue_amount))}</span> },
-                { key: "risk_level", label: "Risk", align: "center" as const,
-                  render: (r: R) => <RiskBadge level={String(r.risk_level)} /> },
-              ]}
-              data={alerts.riskCustomers || []}
-              pageSize={10}
-            />
+            <div className="mt-4">
+              <DataTable
+                columns={[
+                  { key: "customer_name", label: "Customer" },
+                  { key: "overdue_amount", label: "Overdue", align: "right" as const,
+                    render: (r: R) => <span className="font-semibold">{formatCurrency(Number(r.overdue_amount))}</span> },
+                  { key: "risk_level", label: "Risk", align: "center" as const,
+                    render: (r: R) => <RiskBadge level={String(r.risk_level)} /> },
+                ]}
+                data={alerts.riskCustomers || []}
+                pageSize={10}
+              />
+            </div>
           )}
-        </ChartCard>
+        </Card>
 
-        <ChartCard title="High-Risk Vendors" subtitle="Significant unpaid obligations">
+        <Card>
+          <Title>High-Risk Vendors</Title>
+          <Subtitle>Significant unpaid obligations</Subtitle>
           {(alerts.riskVendors || []).length === 0 ? (
             <p className="text-[13px] text-brand-success py-4 text-center">No high-risk vendors</p>
           ) : (
-            <DataTable
-              columns={[
-                { key: "vendor_name", label: "Vendor" },
-                { key: "overdue_amount", label: "Overdue", align: "right" as const,
-                  render: (r: R) => <span className="font-semibold">{formatCurrency(Number(r.overdue_amount))}</span> },
-                { key: "risk_level", label: "Risk", align: "center" as const,
-                  render: (r: R) => <RiskBadge level={String(r.risk_level)} /> },
-              ]}
-              data={alerts.riskVendors || []}
-              pageSize={10}
-            />
+            <div className="mt-4">
+              <DataTable
+                columns={[
+                  { key: "vendor_name", label: "Vendor" },
+                  { key: "overdue_amount", label: "Overdue", align: "right" as const,
+                    render: (r: R) => <span className="font-semibold">{formatCurrency(Number(r.overdue_amount))}</span> },
+                  { key: "risk_level", label: "Risk", align: "center" as const,
+                    render: (r: R) => <RiskBadge level={String(r.risk_level)} /> },
+                ]}
+                data={alerts.riskVendors || []}
+                pageSize={10}
+              />
+            </div>
           )}
-        </ChartCard>
+        </Card>
       </div>
 
       {(alerts.syncWarnings || []).length > 0 && (
-        <ChartCard title="Data Freshness Warnings" subtitle="Sync jobs with stale or missing data">
-          <DataTable
-            columns={[
-              { key: "job_name", label: "Job" },
-              { key: "health", label: "Status", align: "center" as const,
-                render: (r: R) => (
-                  <StatusBadge
-                    status={r.health === "ok" ? "current" : r.health === "stale" ? "warning" : "danger"}
-                    label={String(r.health)}
-                  />
-                )},
-              { key: "hours_ago", label: "Hours Ago", align: "right" as const,
-                render: (r: R) => r.hours_ago !== null ? `${r.hours_ago}h` : "never" },
-            ]}
-            data={alerts.syncWarnings || []}
-          />
-        </ChartCard>
+        <Card>
+          <Title>Data Freshness Warnings</Title>
+          <Subtitle>Sync jobs with stale or missing data</Subtitle>
+          <div className="mt-4">
+            <DataTable
+              columns={[
+                { key: "job_name", label: "Job" },
+                { key: "health", label: "Status", align: "center" as const,
+                  render: (r: R) => (
+                    <StatusBadge
+                      status={r.health === "ok" ? "current" : r.health === "stale" ? "warning" : "danger"}
+                      label={String(r.health)}
+                    />
+                  )},
+                { key: "hours_ago", label: "Hours Ago", align: "right" as const,
+                  render: (r: R) => r.hours_ago !== null ? `${r.hours_ago}h` : "never" },
+              ]}
+              data={alerts.syncWarnings || []}
+            />
+          </div>
+        </Card>
       )}
     </div>
   );

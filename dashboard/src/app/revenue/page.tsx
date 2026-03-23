@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from "react";
 import {
-  BarChart, Bar, AreaChart, Area, LineChart, Line,
+  ComposedChart, Bar, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
-  ComposedChart,
 } from "recharts";
-import { TrendingUp, DollarSign, Percent, ArrowUpRight, ArrowDownRight, Minus, Calendar } from "lucide-react";
-import KpiCard from "@/components/KpiCard";
-import ChartCard from "@/components/ChartCard";
+import {
+  BarChart as TremorBarChart,
+  Card, Metric, Text, Flex, BadgeDelta, Grid, Title, Subtitle,
+} from "@tremor/react";
+import { Calendar } from "lucide-react";
 import DataTable from "@/components/DataTable";
 import { formatCurrency } from "@/lib/format";
 import { useCompanyFetch } from "@/lib/useCompanyFetch";
@@ -17,11 +18,8 @@ import { useCompany } from "@/lib/company";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type R = Record<string, any>;
 
-function ChangeIndicator({ value, suffix = "%" }: { value: number; suffix?: string }) {
-  if (value > 0) return <span className="text-brand-success text-[12px] font-medium">+{value}{suffix}</span>;
-  if (value < 0) return <span className="text-brand-danger text-[12px] font-medium">{value}{suffix}</span>;
-  return <span className="text-muted-foreground text-[12px]">0{suffix}</span>;
-}
+const currencyFormatter = (v: number) => `$${(v / 1000).toFixed(0)}K`;
+const pctFormatter = (v: number) => `${v}%`;
 
 export default function RevenuePage() {
   const { companyId } = useCompany();
@@ -30,7 +28,6 @@ export default function RevenuePage() {
 
   const pnlData = useCompanyFetch<R>("/api/pnl");
 
-  // Fetch analytics with period param
   useEffect(() => {
     setAnalyticsData(null);
     fetch(`/api/revenue-analytics?company_id=${encodeURIComponent(companyId)}&period=${encodeURIComponent(period)}`)
@@ -59,132 +56,183 @@ export default function RevenuePage() {
     <div className="space-y-8">
       {/* === SECTION: P&L Summary === */}
       <div>
-        <h1 className="text-xl font-semibold text-foreground">Revenue & P&L</h1>
-        <p className="text-[12px] text-muted-foreground mt-0.5">Income, profitability, margins, and period comparisons</p>
+        <Title>Revenue &amp; P&amp;L</Title>
+        <Text>Income, profitability, margins, and period comparisons</Text>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label="YTD Revenue" value={formatCurrency(Number(ytd?.revenue || 0))}
-          change={`${ytd?.rev_change_pct || 0}% vs prior year`}
-          changeType={Number(ytd?.rev_change_pct || 0) >= 0 ? "positive" : "negative"} icon={DollarSign} />
-        <KpiCard label="YTD Gross Profit" value={formatCurrency(Number(ytd?.gross_profit || 0))} icon={TrendingUp} />
-        <KpiCard label="YTD Net Income" value={formatCurrency(Number(ytd?.net_income || 0))}
-          change={`${ytd?.ni_change_pct || 0}% vs prior year`}
-          changeType={Number(ytd?.ni_change_pct || 0) >= 0 ? "positive" : "negative"} icon={ArrowUpRight} />
-        <KpiCard label="Gross Margin" value={`${ytd?.margin_pct || 0}%`} icon={Percent} />
-      </div>
+      <Grid numItemsSm={2} numItemsLg={4} className="gap-4">
+        <Card decoration="top" decorationColor="blue">
+          <Text>YTD Revenue</Text>
+          <Metric>{formatCurrency(Number(ytd?.revenue || 0))}</Metric>
+          <Flex justifyContent="start" className="mt-2">
+            <BadgeDelta
+              deltaType={Number(ytd?.rev_change_pct || 0) >= 0 ? "increase" : "decrease"}
+              size="sm"
+            >
+              {ytd?.rev_change_pct || 0}% vs prior year
+            </BadgeDelta>
+          </Flex>
+        </Card>
+        <Card decoration="top" decorationColor="emerald">
+          <Text>YTD Gross Profit</Text>
+          <Metric>{formatCurrency(Number(ytd?.gross_profit || 0))}</Metric>
+        </Card>
+        <Card decoration="top" decorationColor="cyan">
+          <Text>YTD Net Income</Text>
+          <Metric>{formatCurrency(Number(ytd?.net_income || 0))}</Metric>
+          <Flex justifyContent="start" className="mt-2">
+            <BadgeDelta
+              deltaType={Number(ytd?.ni_change_pct || 0) >= 0 ? "increase" : "decrease"}
+              size="sm"
+            >
+              {ytd?.ni_change_pct || 0}% vs prior year
+            </BadgeDelta>
+          </Flex>
+        </Card>
+        <Card decoration="top" decorationColor="amber">
+          <Text>Gross Margin</Text>
+          <Metric>{ytd?.margin_pct || 0}%</Metric>
+        </Card>
+      </Grid>
 
       {/* Monthly P&L */}
-      <ChartCard title="Monthly P&L" subtitle="Income, COGS, and Net Income by month">
-        <ResponsiveContainer width="100%" height={350}>
-          <BarChart data={monthly}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
-            <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-            <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} />
-            <Tooltip formatter={(v: number) => formatCurrency(v)} />
-            <Legend />
-            <Bar dataKey="income" name="Revenue" fill="#003A5C" radius={[1, 1, 0, 0]} />
-            <Bar dataKey="cogs" name="COGS" fill="#C5221F" radius={[1, 1, 0, 0]} />
-            <Bar dataKey="net_income" name="Net Income" fill="#137333" radius={[1, 1, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </ChartCard>
+      <Card>
+        <Title>Monthly P&amp;L</Title>
+        <Subtitle>Income, COGS, and Net Income by month</Subtitle>
+        <TremorBarChart
+          className="mt-4 h-80"
+          data={monthly.map((r: R) => ({
+            month: String(r.label),
+            Revenue: Number(r.income || 0),
+            COGS: Number(r.cogs || 0),
+            "Net Income": Number(r.net_income || 0),
+          }))}
+          index="month"
+          categories={["Revenue", "COGS", "Net Income"]}
+          colors={["blue", "rose", "emerald"]}
+          valueFormatter={(v: number) => currencyFormatter(v)}
+          showAnimation
+          stack
+        />
+      </Card>
 
       {/* === SECTION: Period Comparisons === */}
       <div className="pt-2">
-        <h2 className="text-lg font-semibold text-foreground">Period Comparisons</h2>
-        <p className="text-[12px] text-muted-foreground mt-0.5">Quarter-over-quarter, year-over-year, and YTD analysis</p>
+        <Title>Period Comparisons</Title>
+        <Text>Quarter-over-quarter, year-over-year, and YTD analysis</Text>
       </div>
 
-      {/* QoQ + YTD Comparison Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* QoQ Card */}
-        <ChartCard title="Quarter over Quarter" subtitle={`${qoq.current_label || ''} vs ${qoq.prior_label || ''}`}>
-          <div className="space-y-4 px-2 py-3">
-            <div className="flex justify-between items-center">
-              <span className="text-[12px] text-muted-foreground">Revenue</span>
+        <Card>
+          <Title>Quarter over Quarter</Title>
+          <Subtitle>{`${qoq.current_label || ""} vs ${qoq.prior_label || ""}`}</Subtitle>
+          <div className="space-y-4 mt-4">
+            <Flex justifyContent="between" alignItems="center">
+              <Text>Revenue</Text>
               <div className="text-right">
-                <div className="text-[15px] font-semibold">{formatCurrency(Number(qoq.current_revenue || 0))}</div>
-                <ChangeIndicator value={Number(qoq.revenue_change_pct || 0)} />
+                <Metric className="text-lg">{formatCurrency(Number(qoq.current_revenue || 0))}</Metric>
+                <BadgeDelta
+                  deltaType={Number(qoq.revenue_change_pct || 0) >= 0 ? "increase" : "decrease"}
+                  size="sm"
+                >
+                  {qoq.revenue_change_pct || 0}%
+                </BadgeDelta>
               </div>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-[12px] text-muted-foreground">Gross Profit</span>
+            </Flex>
+            <Flex justifyContent="between" alignItems="center">
+              <Text>Gross Profit</Text>
               <div className="text-right">
-                <div className="text-[15px] font-semibold">{formatCurrency(Number(qoq.current_gp || 0))}</div>
-                <span className="text-[12px] text-muted-foreground">prior: {formatCurrency(Number(qoq.prior_gp || 0))}</span>
+                <Metric className="text-lg">{formatCurrency(Number(qoq.current_gp || 0))}</Metric>
+                <Text>prior: {formatCurrency(Number(qoq.prior_gp || 0))}</Text>
               </div>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-[12px] text-muted-foreground">Margin</span>
+            </Flex>
+            <Flex justifyContent="between" alignItems="center">
+              <Text>Margin</Text>
               <div className="text-right">
-                <span className="text-[15px] font-semibold">{qoq.current_margin || 0}%</span>
-                <span className="text-[12px] text-muted-foreground ml-2">was {qoq.prior_margin || 0}%</span>
+                <Metric className="text-lg">{qoq.current_margin || 0}%</Metric>
+                <Text>was {qoq.prior_margin || 0}%</Text>
               </div>
-            </div>
+            </Flex>
           </div>
-        </ChartCard>
+        </Card>
 
         {/* YTD Comparison Card */}
-        <ChartCard title="YTD vs Prior YTD" subtitle={`Jan–now ${new Date().getFullYear()} vs ${new Date().getFullYear() - 1}`}>
-          <div className="space-y-4 px-2 py-3">
-            <div className="flex justify-between items-center">
-              <span className="text-[12px] text-muted-foreground">Revenue</span>
+        <Card>
+          <Title>YTD vs Prior YTD</Title>
+          <Subtitle>{`Jan–now ${new Date().getFullYear()} vs ${new Date().getFullYear() - 1}`}</Subtitle>
+          <div className="space-y-4 mt-4">
+            <Flex justifyContent="between" alignItems="center">
+              <Text>Revenue</Text>
               <div className="text-right">
-                <div className="text-[15px] font-semibold">{formatCurrency(Number(ytdComp.ytd_revenue || 0))}</div>
-                <ChangeIndicator value={Number(ytdComp.rev_change_pct || 0)} />
+                <Metric className="text-lg">{formatCurrency(Number(ytdComp.ytd_revenue || 0))}</Metric>
+                <BadgeDelta
+                  deltaType={Number(ytdComp.rev_change_pct || 0) >= 0 ? "increase" : "decrease"}
+                  size="sm"
+                >
+                  {ytdComp.rev_change_pct || 0}%
+                </BadgeDelta>
               </div>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-[12px] text-muted-foreground">Prior YTD Revenue</span>
-              <div className="text-[15px] font-semibold">{formatCurrency(Number(ytdComp.prior_ytd_revenue || 0))}</div>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-[12px] text-muted-foreground">Margin</span>
+            </Flex>
+            <Flex justifyContent="between" alignItems="center">
+              <Text>Prior YTD Revenue</Text>
+              <Metric className="text-lg">{formatCurrency(Number(ytdComp.prior_ytd_revenue || 0))}</Metric>
+            </Flex>
+            <Flex justifyContent="between" alignItems="center">
+              <Text>Margin</Text>
               <div className="text-right">
-                <span className="text-[15px] font-semibold">{ytdComp.ytd_margin || 0}%</span>
-                <span className="text-[12px] text-muted-foreground ml-2">was {ytdComp.prior_ytd_margin || 0}%</span>
+                <Metric className="text-lg">{ytdComp.ytd_margin || 0}%</Metric>
+                <Text>was {ytdComp.prior_ytd_margin || 0}%</Text>
               </div>
-            </div>
+            </Flex>
           </div>
-        </ChartCard>
+        </Card>
 
         {/* Quarterly Revenue Trend */}
-        <ChartCard title="Quarterly Revenue" subtitle="All quarters">
-          <ResponsiveContainer width="100%" height={160}>
-            <BarChart data={revenueByQuarter}>
-              <XAxis dataKey="label" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `$${(v / 1000000).toFixed(1)}M`} />
-              <Tooltip formatter={(v: number) => formatCurrency(v)} />
-              <Bar dataKey="revenue" fill="#003A5C" radius={[2, 2, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
+        <Card>
+          <Title>Quarterly Revenue</Title>
+          <Subtitle>All quarters</Subtitle>
+          <TremorBarChart
+            className="mt-4 h-40"
+            data={revenueByQuarter.map((r: R) => ({
+              quarter: String(r.label),
+              Revenue: Number(r.revenue || 0),
+            }))}
+            index="quarter"
+            categories={["Revenue"]}
+            colors={["blue"]}
+            valueFormatter={(v: number) => currencyFormatter(v)}
+            showAnimation
+          />
+        </Card>
       </div>
 
-      {/* YoY Monthly Comparison Chart */}
+      {/* YoY Monthly Comparison Chart — KEEP Recharts (grouped bars) */}
       {yoy.length > 0 && (
-        <ChartCard title="Year-over-Year Monthly Comparison"
-          subtitle={`${new Date().getFullYear()} vs ${new Date().getFullYear() - 1} (same months)`}>
-          <ResponsiveContainer width="100%" height={300}>
-            <ComposedChart data={yoy}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
-              <XAxis dataKey="label" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} />
-              <Tooltip formatter={(v: number) => formatCurrency(v)} />
-              <Legend />
-              <Bar dataKey="current_revenue" name={`${new Date().getFullYear()}`} fill="#003A5C" radius={[2, 2, 0, 0]} />
-              <Bar dataKey="prior_revenue" name={`${new Date().getFullYear() - 1}`} fill="#003A5C" fillOpacity={0.25} radius={[2, 2, 0, 0]} />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </ChartCard>
+        <Card>
+          <Title>Year-over-Year Monthly Comparison</Title>
+          <Subtitle>{`${new Date().getFullYear()} vs ${new Date().getFullYear() - 1} (same months)`}</Subtitle>
+          <TremorBarChart
+            className="mt-4 h-72"
+            data={yoy.map((r: R) => ({
+              month: String(r.label),
+              [String(new Date().getFullYear())]: Number(r.current_revenue || 0),
+              [String(new Date().getFullYear() - 1)]: Number(r.prior_revenue || 0),
+            }))}
+            index="month"
+            categories={[String(new Date().getFullYear()), String(new Date().getFullYear() - 1)]}
+            colors={["blue", "slate"]}
+            valueFormatter={(v: number) => currencyFormatter(v)}
+            showAnimation
+          />
+        </Card>
       )}
 
       {/* === SECTION: Revenue Analytics === */}
       <div className="pt-2 flex items-end justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-foreground">Revenue Analytics</h2>
-          <p className="text-[12px] text-muted-foreground mt-0.5">Revenue breakdown by customer, product, and category</p>
+          <Title>Revenue Analytics</Title>
+          <Text>Revenue breakdown by customer, product, and category</Text>
         </div>
         <div className="flex items-center gap-2">
           <Calendar size={14} className="text-muted-foreground" />
@@ -217,57 +265,65 @@ export default function RevenuePage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Revenue by Customer */}
-        <ChartCard title="Revenue by Customer" subtitle={`Top 25 — ${periodLabel}`}>
-          <DataTable
-            columns={[
-              { key: "customer_name", label: "Customer" },
-              { key: "revenue", label: "Revenue", align: "right" as const,
-                render: (r: R) => <span className="font-semibold">{formatCurrency(Number(r.revenue))}</span> },
-              { key: "margin_pct", label: "Margin", align: "right" as const,
-                render: (r: R) => (
-                  <span className={Number(r.margin_pct) >= 30 ? "text-brand-success" : Number(r.margin_pct) >= 15 ? "text-brand-warning" : "text-brand-danger"}>
-                    {r.margin_pct}%
-                  </span>
-                )},
-              { key: "invoice_count", label: "Orders", align: "right" as const },
-            ]}
-            data={revenueByCustomer}
-            pageSize={10}
-          />
-        </ChartCard>
+        <Card>
+          <Title>Revenue by Customer</Title>
+          <Subtitle>{`Top 25 — ${periodLabel}`}</Subtitle>
+          <div className="mt-4">
+            <DataTable
+              columns={[
+                { key: "customer_name", label: "Customer" },
+                { key: "revenue", label: "Revenue", align: "right" as const,
+                  render: (r: R) => <span className="font-semibold">{formatCurrency(Number(r.revenue))}</span> },
+                { key: "margin_pct", label: "Margin", align: "right" as const,
+                  render: (r: R) => (
+                    <span className={Number(r.margin_pct) >= 30 ? "text-brand-success" : Number(r.margin_pct) >= 15 ? "text-brand-warning" : "text-brand-danger"}>
+                      {r.margin_pct}%
+                    </span>
+                  )},
+                { key: "invoice_count", label: "Orders", align: "right" as const },
+              ]}
+              data={revenueByCustomer}
+              pageSize={10}
+            />
+          </div>
+        </Card>
 
-        {/* Revenue by Product */}
-        <ChartCard title="Revenue by Product" subtitle={`Top 25 — ${periodLabel}`}>
-          <DataTable
-            columns={[
-              { key: "product_name", label: "Product" },
-              { key: "revenue", label: "Revenue", align: "right" as const,
-                render: (r: R) => <span className="font-semibold">{formatCurrency(Number(r.revenue))}</span> },
-              { key: "margin_pct", label: "Margin", align: "right" as const,
-                render: (r: R) => (
-                  <span className={Number(r.margin_pct) >= 30 ? "text-brand-success" : Number(r.margin_pct) >= 15 ? "text-brand-warning" : "text-brand-danger"}>
-                    {r.margin_pct}%
-                  </span>
-                )},
-              { key: "units_sold", label: "Units", align: "right" as const },
-            ]}
-            data={revenueByProduct}
-            pageSize={10}
-          />
-        </ChartCard>
+        <Card>
+          <Title>Revenue by Product</Title>
+          <Subtitle>{`Top 25 — ${periodLabel}`}</Subtitle>
+          <div className="mt-4">
+            <DataTable
+              columns={[
+                { key: "product_name", label: "Product" },
+                { key: "revenue", label: "Revenue", align: "right" as const,
+                  render: (r: R) => <span className="font-semibold">{formatCurrency(Number(r.revenue))}</span> },
+                { key: "margin_pct", label: "Margin", align: "right" as const,
+                  render: (r: R) => (
+                    <span className={Number(r.margin_pct) >= 30 ? "text-brand-success" : Number(r.margin_pct) >= 15 ? "text-brand-warning" : "text-brand-danger"}>
+                      {r.margin_pct}%
+                    </span>
+                  )},
+                { key: "units_sold", label: "Units", align: "right" as const },
+              ]}
+              data={revenueByProduct}
+              pageSize={10}
+            />
+          </div>
+        </Card>
       </div>
 
       {/* === SECTION: Margin Analysis === */}
       <div className="pt-2">
-        <h2 className="text-lg font-semibold text-foreground">Margin Analysis</h2>
-        <p className="text-[12px] text-muted-foreground mt-0.5">Gross and net margin trends by period, customer, and product</p>
+        <Title>Margin Analysis</Title>
+        <Text>Gross and net margin trends by period, customer, and product</Text>
       </div>
 
-      {/* Margin Trend Charts */}
+      {/* Margin Trend Charts — KEEP Recharts ComposedChart (dual axis) */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartCard title="Gross Margin Trend" subtitle="Last 24 months">
-          <ResponsiveContainer width="100%" height={280}>
+        <Card>
+          <Title>Gross Margin Trend</Title>
+          <Subtitle>Last 24 months</Subtitle>
+          <ResponsiveContainer width="100%" height={280} className="mt-4">
             <ComposedChart data={marginByMonth}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
               <XAxis dataKey="label" tick={{ fontSize: 11 }} />
@@ -279,10 +335,12 @@ export default function RevenuePage() {
               <Line yAxisId="pct" type="monotone" dataKey="gross_margin_pct" name="Gross Margin %" stroke="#137333" strokeWidth={2} dot={{ r: 3 }} />
             </ComposedChart>
           </ResponsiveContainer>
-        </ChartCard>
+        </Card>
 
-        <ChartCard title="Net Margin Trend" subtitle="Last 24 months">
-          <ResponsiveContainer width="100%" height={280}>
+        <Card>
+          <Title>Net Margin Trend</Title>
+          <Subtitle>Last 24 months</Subtitle>
+          <ResponsiveContainer width="100%" height={280} className="mt-4">
             <ComposedChart data={marginByMonth}>
               <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
               <XAxis dataKey="label" tick={{ fontSize: 11 }} />
@@ -294,56 +352,69 @@ export default function RevenuePage() {
               <Line yAxisId="pct" type="monotone" dataKey="net_margin_pct" name="Net Margin %" stroke="#0098DB" strokeWidth={2} dot={{ r: 3 }} />
             </ComposedChart>
           </ResponsiveContainer>
-        </ChartCard>
+        </Card>
       </div>
 
       {/* Margin by Customer + Product */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartCard title="Margin by Customer" subtitle={`Top 15 by revenue — ${periodLabel}`}>
-          <ResponsiveContainer width="100%" height={360}>
-            <BarChart data={marginByCustomer} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
-              <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}%`} domain={[0, 100]} />
-              <YAxis type="category" dataKey="customer_name" tick={{ fontSize: 10 }} width={160} />
-              <Tooltip formatter={(v: number) => `${v}%`} />
-              <Bar dataKey="margin_pct" name="Margin %" fill="#137333" radius={[0, 2, 2, 0]}
-                label={{ position: "right", fontSize: 10, formatter: (v: number) => `${v}%` }} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
+        <Card>
+          <Title>Margin by Customer</Title>
+          <Subtitle>{`Top 15 by revenue — ${periodLabel}`}</Subtitle>
+          <TremorBarChart
+            className="mt-4 h-96"
+            data={marginByCustomer.map((r: R) => ({
+              customer: String(r.customer_name),
+              "Margin %": Number(r.margin_pct || 0),
+            }))}
+            index="customer"
+            categories={["Margin %"]}
+            colors={["emerald"]}
+            valueFormatter={(v: number) => pctFormatter(v)}
+            layout="vertical"
+            showAnimation
+          />
+        </Card>
 
-        <ChartCard title="Margin by Product" subtitle={`Top 15 by revenue — ${periodLabel}`}>
-          <ResponsiveContainer width="100%" height={360}>
-            <BarChart data={marginByProduct} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
-              <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}%`} domain={[0, 100]} />
-              <YAxis type="category" dataKey="product_name" tick={{ fontSize: 10 }} width={160} />
-              <Tooltip formatter={(v: number) => `${v}%`} />
-              <Bar dataKey="margin_pct" name="Margin %" fill="#0098DB" radius={[0, 2, 2, 0]}
-                label={{ position: "right", fontSize: 10, formatter: (v: number) => `${v}%` }} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
+        <Card>
+          <Title>Margin by Product</Title>
+          <Subtitle>{`Top 15 by revenue — ${periodLabel}`}</Subtitle>
+          <TremorBarChart
+            className="mt-4 h-96"
+            data={marginByProduct.map((r: R) => ({
+              product: String(r.product_name),
+              "Margin %": Number(r.margin_pct || 0),
+            }))}
+            index="product"
+            categories={["Margin %"]}
+            colors={["cyan"]}
+            valueFormatter={(v: number) => pctFormatter(v)}
+            layout="vertical"
+            showAnimation
+          />
+        </Card>
       </div>
 
       {/* P&L Detail Table */}
-      <ChartCard title="Monthly P&L Detail">
-        <DataTable
-          columns={[
-            { key: "label", label: "Month" },
-            { key: "income", label: "Revenue", align: "right" as const, render: (r: R) => formatCurrency(Number(r.income)) },
-            { key: "cogs", label: "COGS", align: "right" as const, render: (r: R) => formatCurrency(Number(r.cogs)) },
-            { key: "gross_profit", label: "Gross Profit", align: "right" as const, render: (r: R) => formatCurrency(Number(r.gross_profit)) },
-            { key: "margin_pct", label: "Margin %", align: "right" as const, render: (r: R) => <span className="font-semibold">{String(r.margin_pct)}%</span> },
-            { key: "net_income", label: "Net Income", align: "right" as const, render: (r: R) => (
-              <span className={Number(r.net_income) >= 0 ? "text-brand-success font-semibold" : "text-brand-danger font-semibold"}>
-                {formatCurrency(Number(r.net_income))}
-              </span>
-            )},
-          ]}
-          data={[...(monthly)].reverse()}
-        />
-      </ChartCard>
+      <Card>
+        <Title>Monthly P&amp;L Detail</Title>
+        <div className="mt-4">
+          <DataTable
+            columns={[
+              { key: "label", label: "Month" },
+              { key: "income", label: "Revenue", align: "right" as const, render: (r: R) => formatCurrency(Number(r.income)) },
+              { key: "cogs", label: "COGS", align: "right" as const, render: (r: R) => formatCurrency(Number(r.cogs)) },
+              { key: "gross_profit", label: "Gross Profit", align: "right" as const, render: (r: R) => formatCurrency(Number(r.gross_profit)) },
+              { key: "margin_pct", label: "Margin %", align: "right" as const, render: (r: R) => <span className="font-semibold">{String(r.margin_pct)}%</span> },
+              { key: "net_income", label: "Net Income", align: "right" as const, render: (r: R) => (
+                <span className={Number(r.net_income) >= 0 ? "text-brand-success font-semibold" : "text-brand-danger font-semibold"}>
+                  {formatCurrency(Number(r.net_income))}
+                </span>
+              )},
+            ]}
+            data={[...(monthly)].reverse()}
+          />
+        </div>
+      </Card>
     </div>
   );
 }

@@ -1,16 +1,17 @@
 "use client";
 
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer,
-} from "recharts";
-import { ClipboardList, DollarSign, AlertTriangle, Clock } from "lucide-react";
-import KpiCard from "@/components/KpiCard";
-import ChartCard from "@/components/ChartCard";
+  BarChart, Card, Metric, Text, Flex, BadgeDelta, Grid, Title, Subtitle,
+} from "@tremor/react";
 import DataTable from "@/components/DataTable";
 import StatusBadge from "@/components/StatusBadge";
 import { formatCurrency, formatDate } from "@/lib/format";
 import { useCompanyFetch } from "@/lib/useCompanyFetch";
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+type R = Record<string, any>;
+
+const currencyFormatter = (v: number) => `$${(v / 1000).toFixed(0)}K`;
 
 export default function SalesOrdersPage() {
   const data = useCompanyFetch<Record<string, unknown>>("/api/sales-orders");
@@ -20,62 +21,82 @@ export default function SalesOrdersPage() {
   }
 
   const { orders, byCustomer, totals } = data as {
-    orders: Record<string, unknown>[];
-    byCustomer: Record<string, unknown>[];
-    totals: Record<string, unknown>;
+    orders: R[];
+    byCustomer: R[];
+    totals: R;
   };
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-foreground">Sales Orders</h1>
-        <p className="text-[12px] text-muted-foreground mt-0.5">Open backlog and fulfillment status</p>
+        <Title>Sales Orders</Title>
+        <Text>Open backlog and fulfillment status</Text>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        <KpiCard label="Open Orders" value={String(totals?.open_count || 0)} icon={ClipboardList} />
-        <KpiCard label="Backlog Value" value={formatCurrency(Number(totals?.open_value || 0))} icon={DollarSign} />
-        <KpiCard
-          label="Overdue"
-          value={String(totals?.overdue_count || 0)}
-          changeType={Number(totals?.overdue_count || 0) > 0 ? "negative" : "positive"}
-          icon={AlertTriangle}
-        />
-      </div>
+      <Grid numItemsSm={2} numItemsLg={3} className="gap-4">
+        <Card decoration="top" decorationColor="blue">
+          <Text>Open Orders</Text>
+          <Metric>{String(totals?.open_count || 0)}</Metric>
+        </Card>
+        <Card decoration="top" decorationColor="emerald">
+          <Text>Backlog Value</Text>
+          <Metric>{formatCurrency(Number(totals?.open_value || 0))}</Metric>
+        </Card>
+        <Card decoration="top" decorationColor={Number(totals?.overdue_count || 0) > 0 ? "rose" : "emerald"}>
+          <Flex justifyContent="between" alignItems="center">
+            <div>
+              <Text>Overdue</Text>
+              <Metric>{String(totals?.overdue_count || 0)}</Metric>
+            </div>
+            {Number(totals?.overdue_count || 0) > 0 && (
+              <BadgeDelta deltaType="decrease" size="sm">Overdue</BadgeDelta>
+            )}
+          </Flex>
+        </Card>
+      </Grid>
 
       {/* Backlog by Customer */}
-      <ChartCard title="Backlog by Customer">
-        <ResponsiveContainer width="100%" height={Math.max(200, byCustomer.length * 40)}>
-          <BarChart data={byCustomer} layout="vertical">
-            <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
-            <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} />
-            <YAxis type="category" dataKey="customer_name" tick={{ fontSize: 11 }} width={170} />
-            <Tooltip formatter={(v: number, name: string) => name === "total_value" ? formatCurrency(v) : v} />
-            <Bar dataKey="total_value" name="Order Value" fill="#003A5C" radius={[0, 1, 1, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </ChartCard>
+      <Card>
+        <Title>Backlog by Customer</Title>
+        <BarChart
+          className="mt-4"
+          style={{ height: Math.max(200, byCustomer.length * 40) }}
+          data={byCustomer.map((r: R) => ({
+            customer: String(r.customer_name),
+            "Order Value": Number(r.total_value || 0),
+          }))}
+          index="customer"
+          categories={["Order Value"]}
+          colors={["blue"]}
+          valueFormatter={(v: number) => currencyFormatter(v)}
+          layout="vertical"
+          showAnimation
+        />
+      </Card>
 
       {/* Orders Table */}
-      <ChartCard title="Open Sales Orders">
-        <DataTable
-          columns={[
-            { key: "ref_number", label: "Order #" },
-            { key: "customer_name", label: "Customer" },
-            { key: "txn_date", label: "Order Date", render: (r) => formatDate(String(r.txn_date)) },
-            { key: "ship_date", label: "Ship Date", render: (r) => formatDate(String(r.ship_date)) },
-            { key: "amount", label: "Amount", align: "right", render: (r) => (
-              <span className="font-semibold">{formatCurrency(Number(r.amount))}</span>
-            )},
-            { key: "is_overdue", label: "Status", render: (r) => (
-              r.is_overdue
-                ? <StatusBadge status="danger" label="Overdue" />
-                : <StatusBadge status="current" label="On Track" />
-            )},
-          ]}
-          data={orders}
-        />
-      </ChartCard>
+      <Card>
+        <Title>Open Sales Orders</Title>
+        <div className="mt-4">
+          <DataTable
+            columns={[
+              { key: "ref_number", label: "Order #" },
+              { key: "customer_name", label: "Customer" },
+              { key: "txn_date", label: "Order Date", render: (r: R) => formatDate(String(r.txn_date)) },
+              { key: "ship_date", label: "Ship Date", render: (r: R) => formatDate(String(r.ship_date)) },
+              { key: "amount", label: "Amount", align: "right" as const, render: (r: R) => (
+                <span className="font-semibold">{formatCurrency(Number(r.amount))}</span>
+              )},
+              { key: "is_overdue", label: "Status", render: (r: R) => (
+                r.is_overdue
+                  ? <StatusBadge status="danger" label="Overdue" />
+                  : <StatusBadge status="current" label="On Track" />
+              )},
+            ]}
+            data={orders}
+          />
+        </div>
+      </Card>
     </div>
   );
 }

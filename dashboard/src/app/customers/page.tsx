@@ -1,24 +1,29 @@
 "use client";
 
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, ScatterChart, Scatter, ZAxis, Legend,
+  ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, ZAxis,
 } from "recharts";
-import { Users, TrendingDown, AlertTriangle, DollarSign } from "lucide-react";
-import KpiCard from "@/components/KpiCard";
-import ChartCard from "@/components/ChartCard";
+import {
+  BarChart, Card, Metric, Text, Grid, Title, Subtitle,
+} from "@tremor/react";
 import DataTable from "@/components/DataTable";
 import StatusBadge from "@/components/StatusBadge";
 import { formatCurrency } from "@/lib/format";
 import { useCompanyFetch } from "@/lib/useCompanyFetch";
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+type R = Record<string, any>;
+
+const currencyFormatter = (v: number) => `$${(v / 1000).toFixed(0)}K`;
+
 export default function CustomersPage() {
   const data = useCompanyFetch<Record<string, unknown>>("/api/customers");
 
   const d = data as Record<string, unknown> || {};
-  const rankings = (d.rankings as Record<string, unknown>[]) || [];
-  const declining = (d.declining as Record<string, unknown>[]) || [];
-  const reorderAlerts = (d.reorderAlerts as Record<string, unknown>[]) || [];
+  const rankings = (d.rankings as R[]) || [];
+  const declining = (d.declining as R[]) || [];
+  const reorderAlerts = (d.reorderAlerts as R[]) || [];
   const activeCount = Number(d.activeCount || 0);
 
   const topRevenue = rankings.length > 0 ? formatCurrency(Number(rankings[0].revenue)) : "$0";
@@ -29,40 +34,55 @@ export default function CustomersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-foreground">Customers</h1>
-        <p className="text-[12px] text-muted-foreground mt-0.5">Customer performance, margins, and intelligence</p>
+        <Title>Customers</Title>
+        <Text>Customer performance, margins, and intelligence</Text>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label="Active Customers" value={String(activeCount)} icon={Users} />
-        <KpiCard label="Top Customer Revenue" value={topRevenue} icon={DollarSign} subtitle="Current quarter" />
-        <KpiCard label="Avg Margin" value={`${avgMargin}%`} icon={TrendingDown} />
-        <KpiCard
-          label="Declining Accounts"
-          value={String(declining.length)}
-          changeType={declining.length > 0 ? "negative" : "positive"}
-          icon={AlertTriangle}
-        />
-      </div>
+      <Grid numItemsSm={2} numItemsLg={4} className="gap-4">
+        <Card decoration="top" decorationColor="blue">
+          <Text>Active Customers</Text>
+          <Metric>{String(activeCount)}</Metric>
+        </Card>
+        <Card decoration="top" decorationColor="emerald">
+          <Text>Top Customer Revenue</Text>
+          <Metric>{topRevenue}</Metric>
+          <Text className="mt-1">Current quarter</Text>
+        </Card>
+        <Card decoration="top" decorationColor="cyan">
+          <Text>Avg Margin</Text>
+          <Metric>{avgMargin}%</Metric>
+        </Card>
+        <Card decoration="top" decorationColor={declining.length > 0 ? "rose" : "emerald"}>
+          <Text>Declining Accounts</Text>
+          <Metric>{String(declining.length)}</Metric>
+        </Card>
+      </Grid>
 
       {/* Top Customers Bar Chart */}
-      <ChartCard title="Top Customers by Revenue" subtitle="Current quarter">
-        <ResponsiveContainer width="100%" height={Math.max(300, rankings.slice(0, 15).length * 35)}>
-          <BarChart data={rankings.slice(0, 15)} layout="vertical">
-            <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
-            <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} />
-            <YAxis type="category" dataKey="customer_name" tick={{ fontSize: 11 }} width={170} />
-            <Tooltip formatter={(v: number) => formatCurrency(v)} />
-            <Legend />
-            <Bar dataKey="revenue" name="Revenue" fill="#003A5C" radius={[0, 1, 1, 0]} />
-            <Bar dataKey="gross_margin" name="Gross Margin" fill="#137333" radius={[0, 1, 1, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </ChartCard>
+      <Card>
+        <Title>Top Customers by Revenue</Title>
+        <Subtitle>Current quarter</Subtitle>
+        <BarChart
+          className="mt-4 h-96"
+          data={rankings.slice(0, 15).map((r: R) => ({
+            customer: String(r.customer_name),
+            Revenue: Number(r.revenue || 0),
+            "Gross Margin": Number(r.gross_margin || 0),
+          }))}
+          index="customer"
+          categories={["Revenue", "Gross Margin"]}
+          colors={["blue", "emerald"]}
+          valueFormatter={(v: number) => currencyFormatter(v)}
+          layout="vertical"
+          showAnimation
+        />
+      </Card>
 
-      {/* Customer Margin Scatter */}
-      <ChartCard title="Revenue vs Margin" subtitle="Each dot is a customer — bottom-left = low revenue, low margin">
-        <ResponsiveContainer width="100%" height={300}>
+      {/* Customer Margin Scatter — KEEP Recharts (ScatterChart not in Tremor) */}
+      <Card>
+        <Title>Revenue vs Margin</Title>
+        <Subtitle>Each dot is a customer — bottom-left = low revenue, low margin</Subtitle>
+        <ResponsiveContainer width="100%" height={300} className="mt-4">
           <ScatterChart>
             <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
             <XAxis type="number" dataKey="revenue" name="Revenue" tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} />
@@ -72,57 +92,68 @@ export default function CustomersPage() {
             <Scatter data={rankings} fill="#003A5C" />
           </ScatterChart>
         </ResponsiveContainer>
-      </ChartCard>
+      </Card>
 
       {/* Rankings Table */}
-      <ChartCard title="Customer Rankings">
-        <DataTable
-          columns={[
-            { key: "customer_name", label: "Customer" },
-            { key: "revenue", label: "Revenue", align: "right", render: (r) => formatCurrency(Number(r.revenue)) },
-            { key: "gross_margin", label: "Margin $", align: "right", render: (r) => formatCurrency(Number(r.gross_margin)) },
-            { key: "margin_pct", label: "Margin %", align: "right", render: (r) => (
-              <span className={Number(r.margin_pct) < 25 ? "text-brand-danger font-semibold" : "font-semibold"}>
-                {String(r.margin_pct)}%
-              </span>
-            )},
-            { key: "order_count", label: "Orders", align: "right" },
-          ]}
-          data={rankings}
-        />
-      </ChartCard>
+      <Card>
+        <Title>Customer Rankings</Title>
+        <div className="mt-4">
+          <DataTable
+            columns={[
+              { key: "customer_name", label: "Customer" },
+              { key: "revenue", label: "Revenue", align: "right" as const, render: (r: R) => formatCurrency(Number(r.revenue)) },
+              { key: "gross_margin", label: "Margin $", align: "right" as const, render: (r: R) => formatCurrency(Number(r.gross_margin)) },
+              { key: "margin_pct", label: "Margin %", align: "right" as const, render: (r: R) => (
+                <span className={Number(r.margin_pct) < 25 ? "text-brand-danger font-semibold" : "font-semibold"}>
+                  {String(r.margin_pct)}%
+                </span>
+              )},
+              { key: "order_count", label: "Orders", align: "right" as const },
+            ]}
+            data={rankings}
+          />
+        </div>
+      </Card>
 
       {/* Declining + Reorder */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartCard title="Declining Accounts" subtitle="Revenue dropped vs prior 6 months">
-          <DataTable
-            columns={[
-              { key: "customer_name", label: "Customer" },
-              { key: "decline_amount", label: "Decline $", align: "right", render: (r) => (
-                <span className="text-brand-danger font-semibold">{formatCurrency(Number(r.decline_amount))}</span>
-              )},
-              { key: "decline_pct", label: "Decline %", align: "right", render: (r) => (
-                <StatusBadge status="danger" label={`-${String(r.decline_pct)}%`} />
-              )},
-            ]}
-            data={declining}
-            emptyMessage="No declining accounts detected"
-          />
-        </ChartCard>
+        <Card>
+          <Title>Declining Accounts</Title>
+          <Subtitle>Revenue dropped vs prior 6 months</Subtitle>
+          <div className="mt-4">
+            <DataTable
+              columns={[
+                { key: "customer_name", label: "Customer" },
+                { key: "decline_amount", label: "Decline $", align: "right" as const, render: (r: R) => (
+                  <span className="text-brand-danger font-semibold">{formatCurrency(Number(r.decline_amount))}</span>
+                )},
+                { key: "decline_pct", label: "Decline %", align: "right" as const, render: (r: R) => (
+                  <StatusBadge status="danger" label={`-${String(r.decline_pct)}%`} />
+                )},
+              ]}
+              data={declining}
+              emptyMessage="No declining accounts detected"
+            />
+          </div>
+        </Card>
 
-        <ChartCard title="Reorder Alerts" subtitle="Customers past their typical reorder cycle">
-          <DataTable
-            columns={[
-              { key: "customer_name", label: "Customer" },
-              { key: "days_overdue", label: "Days Overdue", align: "right", render: (r) => (
-                <StatusBadge status="warning" label={`${String(r.days_overdue)} days`} />
-              )},
-              { key: "avg_order_value", label: "Avg Order", align: "right", render: (r) => formatCurrency(Number(r.avg_order_value)) },
-            ]}
-            data={reorderAlerts}
-            emptyMessage="No overdue reorders"
-          />
-        </ChartCard>
+        <Card>
+          <Title>Reorder Alerts</Title>
+          <Subtitle>Customers past their typical reorder cycle</Subtitle>
+          <div className="mt-4">
+            <DataTable
+              columns={[
+                { key: "customer_name", label: "Customer" },
+                { key: "days_overdue", label: "Days Overdue", align: "right" as const, render: (r: R) => (
+                  <StatusBadge status="warning" label={`${String(r.days_overdue)} days`} />
+                )},
+                { key: "avg_order_value", label: "Avg Order", align: "right" as const, render: (r: R) => formatCurrency(Number(r.avg_order_value)) },
+              ]}
+              data={reorderAlerts}
+              emptyMessage="No overdue reorders"
+            />
+          </div>
+        </Card>
       </div>
     </div>
   );

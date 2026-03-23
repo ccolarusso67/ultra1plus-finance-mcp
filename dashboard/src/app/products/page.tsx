@@ -1,26 +1,26 @@
 "use client";
 
 import {
-  BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
-} from "recharts";
-import { Package, TrendingDown, AlertTriangle, Percent } from "lucide-react";
-import KpiCard from "@/components/KpiCard";
-import ChartCard from "@/components/ChartCard";
+  BarChart, DonutChart,
+  Card, Metric, Text, Grid, Title, Subtitle,
+} from "@tremor/react";
 import DataTable from "@/components/DataTable";
 import StatusBadge from "@/components/StatusBadge";
 import { formatCurrency } from "@/lib/format";
 import { useCompanyFetch } from "@/lib/useCompanyFetch";
 
-const COLORS = ["#003A5C", "#0098DB", "#137333", "#5F6368", "#C5221F", "#E37400", "#1A73E8", "#8E24AA"];
+/* eslint-disable @typescript-eslint/no-explicit-any */
+type R = Record<string, any>;
+
+const currencyFormatter = (v: number) => `$${(v / 1000).toFixed(0)}K`;
 
 export default function ProductsPage() {
   const data = useCompanyFetch<Record<string, unknown>>("/api/products");
 
   const d2 = data as Record<string, unknown> || {};
-  const rankings = (d2?.rankings as Record<string, unknown>[]) || [];
-  const categoryRevenue = (d2?.categoryRevenue as Record<string, unknown>[]) || [];
-  const erosionAlerts = (d2?.erosionAlerts as Record<string, unknown>[]) || [];
+  const rankings = (d2?.rankings as R[]) || [];
+  const categoryRevenue = (d2?.categoryRevenue as R[]) || [];
+  const erosionAlerts = (d2?.erosionAlerts as R[]) || [];
   const activeSkus = Number(d2?.activeSkus || 0);
 
   const highestMargin = rankings.length > 0
@@ -33,112 +33,116 @@ export default function ProductsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-foreground">Products</h1>
-        <p className="text-[12px] text-muted-foreground mt-0.5">Product performance, margins, and alerts</p>
+        <Title>Products</Title>
+        <Text>Product performance, margins, and alerts</Text>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard label="Active SKUs" value={String(activeSkus)} icon={Package} />
-        <KpiCard
-          label="Highest Margin"
-          value={`${highestMargin?.margin_pct || 0}%`}
-          subtitle={String(highestMargin?.product_name || "")}
-          icon={Percent}
-        />
-        <KpiCard
-          label="Lowest Margin"
-          value={`${lowestMargin?.margin_pct || 0}%`}
-          subtitle={String(lowestMargin?.product_name || "")}
-          changeType="negative"
-          icon={TrendingDown}
-        />
-        <KpiCard
-          label="Margin Alerts"
-          value={String(erosionAlerts.length)}
-          changeType={erosionAlerts.length > 0 ? "negative" : "positive"}
-          icon={AlertTriangle}
-        />
-      </div>
+      <Grid numItemsSm={2} numItemsLg={4} className="gap-4">
+        <Card decoration="top" decorationColor="blue">
+          <Text>Active SKUs</Text>
+          <Metric>{String(activeSkus)}</Metric>
+        </Card>
+        <Card decoration="top" decorationColor="emerald">
+          <Text>Highest Margin</Text>
+          <Metric>{highestMargin?.margin_pct || 0}%</Metric>
+          <Text className="mt-1">{String(highestMargin?.product_name || "")}</Text>
+        </Card>
+        <Card decoration="top" decorationColor="rose">
+          <Text>Lowest Margin</Text>
+          <Metric>{lowestMargin?.margin_pct || 0}%</Metric>
+          <Text className="mt-1">{String(lowestMargin?.product_name || "")}</Text>
+        </Card>
+        <Card decoration="top" decorationColor={erosionAlerts.length > 0 ? "rose" : "emerald"}>
+          <Text>Margin Alerts</Text>
+          <Metric>{String(erosionAlerts.length)}</Metric>
+        </Card>
+      </Grid>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Top Products */}
-        <ChartCard title="Top Products by Revenue" subtitle="Last 6 months" className="lg:col-span-2">
-          <ResponsiveContainer width="100%" height={Math.max(300, rankings.slice(0, 12).length * 32)}>
-            <BarChart data={rankings.slice(0, 12)} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
-              <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} />
-              <YAxis type="category" dataKey="product_name" tick={{ fontSize: 11 }} width={220} />
-              <Tooltip formatter={(v: number) => formatCurrency(v)} />
-              <Legend />
-              <Bar dataKey="revenue" name="Revenue" fill="#003A5C" radius={[0, 1, 1, 0]} />
-              <Bar dataKey="gross_margin" name="Margin" fill="#137333" radius={[0, 1, 1, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
+        <Card className="lg:col-span-2">
+          <Title>Top Products by Revenue</Title>
+          <Subtitle>Last 6 months</Subtitle>
+          <BarChart
+            className="mt-4 h-96"
+            data={rankings.slice(0, 12).map((r: R) => ({
+              product: String(r.product_name),
+              Revenue: Number(r.revenue || 0),
+              Margin: Number(r.gross_margin || 0),
+            }))}
+            index="product"
+            categories={["Revenue", "Margin"]}
+            colors={["blue", "emerald"]}
+            valueFormatter={(v: number) => currencyFormatter(v)}
+            layout="vertical"
+            showAnimation
+          />
+        </Card>
 
         {/* Category Donut */}
-        <ChartCard title="Revenue by Category">
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={categoryRevenue}
-                dataKey="revenue"
-                nameKey="category"
-                cx="50%" cy="50%"
-                innerRadius={60} outerRadius={100}
-                paddingAngle={2}
-                label={({ category, percent }) => `${category} ${(percent * 100).toFixed(0)}%`}
-                labelLine={false}
-              >
-                {categoryRevenue.map((_: unknown, i: number) => (
-                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(v: number) => formatCurrency(v)} />
-            </PieChart>
-          </ResponsiveContainer>
-        </ChartCard>
+        <Card>
+          <Title>Revenue by Category</Title>
+          <DonutChart
+            className="mt-6 h-72"
+            data={categoryRevenue.map((r: R) => ({
+              name: String(r.category),
+              value: Number(r.revenue || 0),
+            }))}
+            category="value"
+            index="name"
+            valueFormatter={(v: number) => formatCurrency(v)}
+            colors={["blue", "cyan", "emerald", "slate", "rose", "amber", "indigo", "violet"]}
+            showAnimation
+          />
+        </Card>
       </div>
 
       {/* Full Rankings Table */}
-      <ChartCard title="Product Rankings">
-        <DataTable
-          columns={[
-            { key: "product_name", label: "Product" },
-            { key: "sku", label: "SKU" },
-            { key: "category", label: "Category" },
-            { key: "units_sold", label: "Units", align: "right" },
-            { key: "revenue", label: "Revenue", align: "right", render: (r) => formatCurrency(Number(r.revenue)) },
-            { key: "gross_margin", label: "Margin $", align: "right", render: (r) => formatCurrency(Number(r.gross_margin)) },
-            { key: "margin_pct", label: "Margin %", align: "right", render: (r) => (
-              <span className={Number(r.margin_pct) < 25 ? "text-brand-danger font-semibold" : "font-semibold"}>
-                {String(r.margin_pct)}%
-              </span>
-            )},
-            { key: "customer_count", label: "Customers", align: "right" },
-          ]}
-          data={rankings}
-        />
-      </ChartCard>
-
-      {/* Margin Erosion Alerts */}
-      {erosionAlerts.length > 0 && (
-        <ChartCard title="Margin Erosion Alerts" subtitle="Products where margin dropped 3%+ vs prior period">
+      <Card>
+        <Title>Product Rankings</Title>
+        <div className="mt-4">
           <DataTable
             columns={[
               { key: "product_name", label: "Product" },
               { key: "sku", label: "SKU" },
-              { key: "current_margin", label: "Current %", align: "right" },
-              { key: "prior_margin", label: "Prior %", align: "right" },
-              { key: "margin_change", label: "Change", align: "right", render: (r) => (
-                <StatusBadge status="danger" label={`${String(r.margin_change)}%`} />
+              { key: "category", label: "Category" },
+              { key: "units_sold", label: "Units", align: "right" as const },
+              { key: "revenue", label: "Revenue", align: "right" as const, render: (r: R) => formatCurrency(Number(r.revenue)) },
+              { key: "gross_margin", label: "Margin $", align: "right" as const, render: (r: R) => formatCurrency(Number(r.gross_margin)) },
+              { key: "margin_pct", label: "Margin %", align: "right" as const, render: (r: R) => (
+                <span className={Number(r.margin_pct) < 25 ? "text-brand-danger font-semibold" : "font-semibold"}>
+                  {String(r.margin_pct)}%
+                </span>
               )},
-              { key: "current_cost", label: "Curr Cost", align: "right", render: (r) => `$${String(r.current_cost)}` },
-              { key: "prior_cost", label: "Prior Cost", align: "right", render: (r) => `$${String(r.prior_cost)}` },
+              { key: "customer_count", label: "Customers", align: "right" as const },
             ]}
-            data={erosionAlerts}
+            data={rankings}
           />
-        </ChartCard>
+        </div>
+      </Card>
+
+      {/* Margin Erosion Alerts */}
+      {erosionAlerts.length > 0 && (
+        <Card>
+          <Title>Margin Erosion Alerts</Title>
+          <Subtitle>Products where margin dropped 3%+ vs prior period</Subtitle>
+          <div className="mt-4">
+            <DataTable
+              columns={[
+                { key: "product_name", label: "Product" },
+                { key: "sku", label: "SKU" },
+                { key: "current_margin", label: "Current %", align: "right" as const },
+                { key: "prior_margin", label: "Prior %", align: "right" as const },
+                { key: "margin_change", label: "Change", align: "right" as const, render: (r: R) => (
+                  <StatusBadge status="danger" label={`${String(r.margin_change)}%`} />
+                )},
+                { key: "current_cost", label: "Curr Cost", align: "right" as const, render: (r: R) => `$${String(r.current_cost)}` },
+                { key: "prior_cost", label: "Prior Cost", align: "right" as const, render: (r: R) => `$${String(r.prior_cost)}` },
+              ]}
+              data={erosionAlerts}
+            />
+          </div>
+        </Card>
       )}
     </div>
   );
