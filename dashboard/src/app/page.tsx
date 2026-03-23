@@ -36,8 +36,8 @@ export default function OverviewPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-[#1A1A1A]">Financial Overview</h1>
-        <p className="text-[12px] text-[#5F6368] mt-0.5">
+        <h1 className="text-xl font-semibold text-foreground">Financial Overview</h1>
+        <p className="text-[12px] text-muted-foreground mt-0.5">
           Executive summary of Ultra1Plus financial performance
         </p>
       </div>
@@ -150,7 +150,7 @@ export default function OverviewPage() {
               {
                 key: "overdue_amount", label: "Overdue", align: "right" as const,
                 render: (r: Record<string, unknown>) => (
-                  <span className="font-semibold text-[#C5221F]">
+                  <span className="font-semibold text-brand-danger">
                     {formatCurrency(Number(r.overdue_amount))}
                   </span>
                 ),
@@ -172,7 +172,7 @@ export default function OverviewPage() {
               {
                 key: "amount", label: "Amount", align: "right" as const,
                 render: (r: Record<string, unknown>) => (
-                  <span className="font-semibold text-[#137333]">
+                  <span className="font-semibold text-brand-success">
                     {formatCurrency(Number(r.amount))}
                   </span>
                 ),

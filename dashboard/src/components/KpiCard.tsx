@@ -1,4 +1,5 @@
 import { LucideIcon } from "lucide-react";
+import { Card } from "@/components/ui/card";
 
 interface KpiCardProps {
   label: string;
@@ -18,31 +19,27 @@ export default function KpiCard({
   subtitle,
 }: KpiCardProps) {
   const changeColor = {
-    positive: "text-[#137333]",
-    negative: "text-[#C5221F]",
-    neutral: "text-[#5F6368]",
+    positive: "text-brand-success",
+    negative: "text-brand-danger",
+    neutral: "text-muted-foreground",
   }[changeType];
 
   return (
-    <div className="bg-white border border-[#E0E0E0] rounded-sm p-4 hover:shadow-sm transition-shadow relative">
-      <div className="absolute top-0 left-0 right-0 h-[2px] bg-[#003A5C]" />
-      <div className="flex items-center gap-2 mb-2">
-        {Icon && (
-          <Icon size={14} className="text-[#5F6368]" strokeWidth={1.5} />
+    <Card size="sm" className="relative overflow-visible">
+      <div className="absolute top-0 left-0 right-0 h-[2px] rounded-t-xl bg-brand-dark" />
+      <div className="px-4 py-3">
+        <div className="flex items-center gap-2 mb-1.5">
+          {Icon && <Icon size={14} className="text-muted-foreground" strokeWidth={1.5} />}
+          <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{label}</p>
+        </div>
+        <p className="text-xl font-semibold text-foreground">{value}</p>
+        {change && (
+          <span className={`inline-block mt-1 text-[11px] font-medium ${changeColor}`}>{change}</span>
         )}
-        <p className="text-[11px] font-medium uppercase tracking-wider text-[#5F6368]">{label}</p>
+        {subtitle && (
+          <p className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</p>
+        )}
       </div>
-      <p className="text-xl font-semibold text-[#1A1A1A]">{value}</p>
-      {change && (
-        <span
-          className={`inline-block mt-1.5 text-[11px] font-medium ${changeColor}`}
-        >
-          {change}
-        </span>
-      )}
-      {subtitle && (
-        <p className="text-[11px] text-[#5F6368] mt-1">{subtitle}</p>
-      )}
-    </div>
+    </Card>
   );
 }

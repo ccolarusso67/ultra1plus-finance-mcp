@@ -18,7 +18,7 @@ export default function InventoryPage() {
   const data = useCompanyFetch<Record<string, unknown>>("/api/inventory");
 
   if (!data) {
-    return <div className="flex items-center justify-center h-96"><div className="text-[#5F6368]">Loading...</div></div>;
+    return <div className="flex items-center justify-center h-96"><div className="text-muted-foreground">Loading...</div></div>;
   }
 
   const { items, byCategory, totals } = data as {
@@ -32,8 +32,8 @@ export default function InventoryPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-[#1A1A1A]">Inventory</h1>
-        <p className="text-[12px] text-[#5F6368] mt-0.5">Stock levels, values, and reorder alerts</p>
+        <h1 className="text-xl font-semibold text-foreground">Inventory</h1>
+        <p className="text-[12px] text-muted-foreground mt-0.5">Stock levels, values, and reorder alerts</p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -94,7 +94,7 @@ export default function InventoryPage() {
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <div className="text-center py-8 text-[#5F6368] text-sm">All items above reorder point</div>
+            <div className="text-center py-8 text-muted-foreground text-sm">All items above reorder point</div>
           )}
         </ChartCard>
       </div>
@@ -112,7 +112,7 @@ export default function InventoryPage() {
               const avail = Number(r.quantity_available);
               const reorder = Number(r.reorder_point);
               return (
-                <span className={avail <= reorder && reorder > 0 ? "text-[#C5221F] font-semibold" : ""}>
+                <span className={avail <= reorder && reorder > 0 ? "text-brand-danger font-semibold" : ""}>
                   {formatNumber(avail)}
                 </span>
               );

@@ -16,7 +16,7 @@ export default function ReceivablesPage() {
   const data = useCompanyFetch<Record<string, unknown>>("/api/ar-aging");
 
   if (!data) {
-    return <div className="flex items-center justify-center h-96"><div className="text-[#5F6368]">Loading...</div></div>;
+    return <div className="flex items-center justify-center h-96"><div className="text-muted-foreground">Loading...</div></div>;
   }
 
   const { aging, openInvoices, creditHolds, totals } = data as {
@@ -29,8 +29,8 @@ export default function ReceivablesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-[#1A1A1A]">Accounts Receivable</h1>
-        <p className="text-[12px] text-[#5F6368] mt-0.5">AR aging, open invoices, and credit status</p>
+        <h1 className="text-xl font-semibold text-foreground">Accounts Receivable</h1>
+        <p className="text-[12px] text-muted-foreground mt-0.5">AR aging, open invoices, and credit status</p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -99,10 +99,10 @@ export default function ReceivablesPage() {
               { key: "customer_name", label: "Customer" },
               { key: "credit_limit", label: "Credit Limit", align: "right", render: (r) => formatCurrency(Number(r.credit_limit)) },
               { key: "balance", label: "Balance", align: "right", render: (r) => (
-                <span className="text-[#C5221F] font-semibold">{formatCurrency(Number(r.balance))}</span>
+                <span className="text-brand-danger font-semibold">{formatCurrency(Number(r.balance))}</span>
               )},
               { key: "available_credit", label: "Available", align: "right", render: (r) => (
-                <span className="text-[#C5221F]">{formatCurrency(Number(r.available_credit))}</span>
+                <span className="text-brand-danger">{formatCurrency(Number(r.available_credit))}</span>
               )},
             ]}
             data={creditHolds}

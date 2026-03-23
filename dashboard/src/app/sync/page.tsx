@@ -40,10 +40,10 @@ function timeAgo(minutes: number | null): string {
 }
 
 function freshnessColor(minutes: number | null): string {
-  if (minutes === null) return "text-[#5F6368]";
-  if (minutes < 30) return "text-[#137333]";
-  if (minutes < 120) return "text-[#E37400]";
-  return "text-[#C5221F]";
+  if (minutes === null) return "text-muted-foreground";
+  if (minutes < 30) return "text-brand-success";
+  if (minutes < 120) return "text-brand-warning";
+  return "text-brand-danger";
 }
 
 export default function SyncHealthPage() {
@@ -75,16 +75,16 @@ export default function SyncHealthPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-[#1A1A1A]">
+          <h1 className="text-xl font-semibold text-foreground">
             Data Sync Health
           </h1>
-          <p className="text-[12px] text-[#5F6368] mt-0.5">
+          <p className="text-[12px] text-muted-foreground mt-0.5">
             QuickBooks Web Connector sync job status and data freshness
           </p>
         </div>
         <button
           onClick={loadData}
-          className="flex items-center gap-2 px-3 py-1.5 text-[12px] font-medium text-[#5F6368] bg-white border border-[#E0E0E0] rounded-md hover:bg-[#F8F9FA] transition-colors"
+          className="flex items-center gap-2 px-3 py-1.5 text-[12px] font-medium text-muted-foreground bg-card border border-border rounded-md hover:bg-[#F8F9FA] transition-colors"
         >
           <RefreshCw size={13} className={loading ? "animate-spin" : ""} />
           Refresh
@@ -93,35 +93,35 @@ export default function SyncHealthPage() {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white border border-[#E0E0E0] rounded-lg px-4 py-3">
-          <p className="text-[10px] uppercase tracking-[0.15em] text-[#5F6368]">
+        <div className="bg-card border border-border rounded-lg px-4 py-3">
+          <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
             Total Jobs
           </p>
-          <p className="text-2xl font-semibold text-[#1A1A1A] mt-1">
+          <p className="text-2xl font-semibold text-foreground mt-1">
             {jobs.length}
           </p>
         </div>
-        <div className="bg-white border border-[#E0E0E0] rounded-lg px-4 py-3">
-          <p className="text-[10px] uppercase tracking-[0.15em] text-[#137333]">
+        <div className="bg-card border border-border rounded-lg px-4 py-3">
+          <p className="text-[10px] uppercase tracking-[0.15em] text-brand-success">
             Healthy
           </p>
-          <p className="text-2xl font-semibold text-[#137333] mt-1">
+          <p className="text-2xl font-semibold text-brand-success mt-1">
             {successCount}
           </p>
         </div>
-        <div className="bg-white border border-[#E0E0E0] rounded-lg px-4 py-3">
-          <p className="text-[10px] uppercase tracking-[0.15em] text-[#C5221F]">
+        <div className="bg-card border border-border rounded-lg px-4 py-3">
+          <p className="text-[10px] uppercase tracking-[0.15em] text-brand-danger">
             Errors
           </p>
-          <p className="text-2xl font-semibold text-[#C5221F] mt-1">
+          <p className="text-2xl font-semibold text-brand-danger mt-1">
             {errorCount}
           </p>
         </div>
-        <div className="bg-white border border-[#E0E0E0] rounded-lg px-4 py-3">
-          <p className="text-[10px] uppercase tracking-[0.15em] text-[#5F6368]">
+        <div className="bg-card border border-border rounded-lg px-4 py-3">
+          <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground">
             Total Records
           </p>
-          <p className="text-2xl font-semibold text-[#1A1A1A] mt-1">
+          <p className="text-2xl font-semibold text-foreground mt-1">
             {totalRecords.toLocaleString()}
           </p>
         </div>
@@ -132,20 +132,20 @@ export default function SyncHealthPage() {
         <div className="overflow-x-auto">
           <table className="w-full text-[13px]">
             <thead>
-              <tr className="border-b border-[#E0E0E0]">
-                <th className="text-left py-2.5 px-3 text-[10px] uppercase tracking-[0.15em] text-[#5F6368] font-medium">
+              <tr className="border-b border-border">
+                <th className="text-left py-2.5 px-3 text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-medium">
                   Job
                 </th>
-                <th className="text-left py-2.5 px-3 text-[10px] uppercase tracking-[0.15em] text-[#5F6368] font-medium">
+                <th className="text-left py-2.5 px-3 text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-medium">
                   Status
                 </th>
-                <th className="text-right py-2.5 px-3 text-[10px] uppercase tracking-[0.15em] text-[#5F6368] font-medium">
+                <th className="text-right py-2.5 px-3 text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-medium">
                   Records
                 </th>
-                <th className="text-left py-2.5 px-3 text-[10px] uppercase tracking-[0.15em] text-[#5F6368] font-medium">
+                <th className="text-left py-2.5 px-3 text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-medium">
                   Last Success
                 </th>
-                <th className="text-left py-2.5 px-3 text-[10px] uppercase tracking-[0.15em] text-[#5F6368] font-medium">
+                <th className="text-left py-2.5 px-3 text-[10px] uppercase tracking-[0.15em] text-muted-foreground font-medium">
                   Details
                 </th>
               </tr>
@@ -156,27 +156,27 @@ export default function SyncHealthPage() {
                   key={job.job_name}
                   className="border-b border-[#F3F3F3] hover:bg-[#F8F9FA] transition-colors"
                 >
-                  <td className="py-2.5 px-3 font-medium text-[#1A1A1A]">
+                  <td className="py-2.5 px-3 font-medium text-foreground">
                     {formatJobName(job.job_name)}
                   </td>
                   <td className="py-2.5 px-3">
                     {job.status === "success" ? (
-                      <span className="inline-flex items-center gap-1 text-[#137333]">
+                      <span className="inline-flex items-center gap-1 text-brand-success">
                         <CheckCircle2 size={14} />
                         <StatusBadge status="current" label="Healthy" />
                       </span>
                     ) : job.status === "error" ? (
-                      <span className="inline-flex items-center gap-1 text-[#C5221F]">
+                      <span className="inline-flex items-center gap-1 text-brand-danger">
                         <XCircle size={14} />
                         <StatusBadge status="danger" label="Error" />
                       </span>
                     ) : job.status === "running" ? (
-                      <span className="inline-flex items-center gap-1 text-[#0098DB]">
+                      <span className="inline-flex items-center gap-1 text-brand-blue">
                         <Loader2 size={14} className="animate-spin" />
                         <StatusBadge status="info" label="Running" />
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-[#5F6368]">
+                      <span className="inline-flex items-center gap-1 text-muted-foreground">
                         <Clock size={14} />
                         <StatusBadge status="warning" label="Idle" />
                       </span>
@@ -190,14 +190,14 @@ export default function SyncHealthPage() {
                   >
                     {timeAgo(job.minutes_ago)}
                   </td>
-                  <td className="py-2.5 px-3 text-[#5F6368] max-w-[200px] truncate">
+                  <td className="py-2.5 px-3 text-muted-foreground max-w-[200px] truncate">
                     {job.error_message || "—"}
                   </td>
                 </tr>
               ))}
               {jobs.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-[#5F6368]">
+                  <td colSpan={5} className="py-8 text-center text-muted-foreground">
                     {loading ? "Loading sync status..." : "No sync jobs found"}
                   </td>
                 </tr>

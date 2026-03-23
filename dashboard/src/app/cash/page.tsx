@@ -28,7 +28,7 @@ function RiskBadge({ level }: { level: string }) {
     critical: "bg-[#C5221F] text-white",
     high: "bg-[#E37400] text-white",
     medium: "bg-[#FDE293] text-[#7F6000]",
-    low: "bg-[#E6F4EA] text-[#137333]",
+    low: "bg-[#E6F4EA] text-brand-success",
   };
   return (
     <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium ${colors[level] || colors.low}`}>
@@ -41,10 +41,10 @@ function AlertCard({ condition, title, message }: { condition: boolean; title: s
   if (!condition) return null;
   return (
     <div className="flex items-start gap-3 bg-[#FCE8E6] border border-[#C5221F]/20 rounded-lg px-4 py-3">
-      <AlertTriangle size={16} className="text-[#C5221F] mt-0.5 shrink-0" />
+      <AlertTriangle size={16} className="text-brand-danger mt-0.5 shrink-0" />
       <div>
-        <p className="text-[13px] font-semibold text-[#C5221F]">{title}</p>
-        <p className="text-[12px] text-[#5F6368] mt-0.5">{message}</p>
+        <p className="text-[13px] font-semibold text-brand-danger">{title}</p>
+        <p className="text-[12px] text-muted-foreground mt-0.5">{message}</p>
       </div>
     </div>
   );
@@ -64,7 +64,7 @@ export default function CashPage() {
   }, [companyId, days]);
 
   if (!data) {
-    return <div className="flex items-center justify-center h-96"><div className="text-[#5F6368]">Loading...</div></div>;
+    return <div className="flex items-center justify-center h-96"><div className="text-muted-foreground">Loading...</div></div>;
   }
 
   const k = data.kpis || {};
@@ -102,16 +102,16 @@ export default function CashPage() {
       {/* Header + Date Range */}
       <div className="flex items-end justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-[#1A1A1A]">Operational Cash</h1>
-          <p className="text-[12px] text-[#5F6368] mt-0.5">
+          <h1 className="text-xl font-semibold text-foreground">Operational Cash</h1>
+          <p className="text-[12px] text-muted-foreground mt-0.5">
             Cash pressure, collections, obligations, and short-term liquidity
             <span className="ml-2 text-[10px] bg-[#FDE293] text-[#7F6000] px-1.5 py-0.5 rounded">Operational view — not a formal cash flow statement</span>
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Calendar size={14} className="text-[#5F6368]" />
+          <Calendar size={14} className="text-muted-foreground" />
           <select value={days} onChange={(e) => setDays(Number(e.target.value))}
-            className="text-[13px] border border-[#E0E0E0] rounded px-3 py-1.5 bg-white text-[#1A1A1A] focus:outline-none focus:border-[#0098DB] cursor-pointer">
+            className="text-[13px] border border-border rounded px-3 py-1.5 bg-card text-foreground focus:outline-none focus:border-[#0098DB] cursor-pointer">
             <option value={30}>Last 30 days</option>
             <option value={90}>Last 90 days</option>
             <option value={180}>Last 180 days</option>
@@ -160,15 +160,15 @@ export default function CashPage() {
         "bg-[#FCE8E6] border-[#C5221F]/20"
       }`}>
         <div>
-          <span className="text-[12px] font-medium text-[#5F6368] uppercase tracking-wider">30-Day Coverage Ratio</span>
-          <p className="text-[11px] text-[#5F6368] mt-0.5">Cash In (30d) ÷ Bills Due (30d)</p>
+          <span className="text-[12px] font-medium text-muted-foreground uppercase tracking-wider">30-Day Coverage Ratio</span>
+          <p className="text-[11px] text-muted-foreground mt-0.5">Cash In (30d) ÷ Bills Due (30d)</p>
         </div>
         <div className="text-right">
           <span className={`text-2xl font-bold ${
-            coverageType === "positive" ? "text-[#137333]" :
-            coverageType === "neutral" ? "text-[#E37400]" : "text-[#C5221F]"
+            coverageType === "positive" ? "text-brand-success" :
+            coverageType === "neutral" ? "text-brand-warning" : "text-brand-danger"
           }`}>{coverageRatio !== null && coverageRatio !== undefined ? `${coverageRatio}x` : "N/A"}</span>
-          <p className="text-[11px] text-[#5F6368]">
+          <p className="text-[11px] text-muted-foreground">
             {coverageRatio >= 1.5 ? "Healthy" : coverageRatio >= 1 ? "Tight" : coverageRatio !== null ? "Under pressure" : ""}
           </p>
         </div>
@@ -176,8 +176,8 @@ export default function CashPage() {
 
       {/* === COLLECTIONS === */}
       <div className="pt-2">
-        <h2 className="text-lg font-semibold text-[#1A1A1A]">Collections</h2>
-        <p className="text-[12px] text-[#5F6368] mt-0.5">Cash inflows, payment trends, and receivable aging</p>
+        <h2 className="text-lg font-semibold text-foreground">Collections</h2>
+        <p className="text-[12px] text-muted-foreground mt-0.5">Cash inflows, payment trends, and receivable aging</p>
       </div>
 
       <ChartCard title="Daily Collections" subtitle={`Last ${days} days`}>
@@ -198,7 +198,7 @@ export default function CashPage() {
             columns={[
               { key: "customer_name", label: "Customer" },
               { key: "total_paid", label: "Collected", align: "right" as const,
-                render: (r: R) => <span className="font-semibold text-[#137333]">{formatCurrency(Number(r.total_paid))}</span> },
+                render: (r: R) => <span className="font-semibold text-brand-success">{formatCurrency(Number(r.total_paid))}</span> },
               { key: "payment_count", label: "#", align: "right" as const },
             ]}
             data={c.topCustomers || []}
@@ -222,7 +222,7 @@ export default function CashPage() {
                 return (
                   <div key={label} className="flex items-center gap-2">
                     <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: AGING_COLORS[i] }} />
-                    <span className="text-[#5F6368] w-12">{label}</span>
+                    <span className="text-muted-foreground w-12">{label}</span>
                     <span className="font-medium">{formatCurrency(Number(arBuckets[keys[i]] || 0))}</span>
                   </div>
                 );
@@ -251,11 +251,11 @@ export default function CashPage() {
             columns={[
               { key: "customer_name", label: "Customer" },
               { key: "balance_remaining", label: "Balance", align: "right" as const,
-                render: (r: R) => <span className="font-semibold text-[#C5221F]">{formatCurrency(Number(r.balance_remaining))}</span> },
+                render: (r: R) => <span className="font-semibold text-brand-danger">{formatCurrency(Number(r.balance_remaining))}</span> },
               { key: "days_past_due", label: "Days", align: "right" as const,
                 render: (r: R) => {
                   const d = Number(r.days_past_due);
-                  return <span className={d > 90 ? "text-[#C5221F] font-bold" : d > 30 ? "text-[#E37400] font-medium" : ""}>{d}</span>;
+                  return <span className={d > 90 ? "text-brand-danger font-bold" : d > 30 ? "text-brand-warning font-medium" : ""}>{d}</span>;
                 }},
             ]}
             data={c.largestOverdue || []}
@@ -266,8 +266,8 @@ export default function CashPage() {
 
       {/* === PAYABLES === */}
       <div className="pt-2">
-        <h2 className="text-lg font-semibold text-[#1A1A1A]">Payables & Obligations</h2>
-        <p className="text-[12px] text-[#5F6368] mt-0.5">Upcoming bills, vendor exposure, and payment calendar</p>
+        <h2 className="text-lg font-semibold text-foreground">Payables & Obligations</h2>
+        <p className="text-[12px] text-muted-foreground mt-0.5">Upcoming bills, vendor exposure, and payment calendar</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -299,7 +299,7 @@ export default function CashPage() {
                 return (
                   <div key={label} className="flex items-center gap-2">
                     <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: AGING_COLORS[i] }} />
-                    <span className="text-[#5F6368] w-12">{label}</span>
+                    <span className="text-muted-foreground w-12">{label}</span>
                     <span className="font-medium">{formatCurrency(Number(apBuckets[keys[i]] || 0))}</span>
                   </div>
                 );
@@ -330,8 +330,8 @@ export default function CashPage() {
                 render: (r: R) => <span className="font-semibold">{formatCurrency(Number(r.balance))}</span> },
               { key: "days_91_plus", label: ">90d", align: "right" as const,
                 render: (r: R) => Number(r.days_91_plus) > 0
-                  ? <span className="text-[#C5221F] font-medium">{formatCurrency(Number(r.days_91_plus))}</span>
-                  : <span className="text-[#5F6368]">$0</span> },
+                  ? <span className="text-brand-danger font-medium">{formatCurrency(Number(r.days_91_plus))}</span>
+                  : <span className="text-muted-foreground">$0</span> },
             ]}
             data={p.largestVendors || []}
             pageSize={10}
@@ -341,8 +341,8 @@ export default function CashPage() {
 
       {/* === LIQUIDITY === */}
       <div className="pt-2">
-        <h2 className="text-lg font-semibold text-[#1A1A1A]">Liquidity & Pressure</h2>
-        <p className="text-[12px] text-[#5F6368] mt-0.5">Collections vs obligations, operating cash trends</p>
+        <h2 className="text-lg font-semibold text-foreground">Liquidity & Pressure</h2>
+        <p className="text-[12px] text-muted-foreground mt-0.5">Collections vs obligations, operating cash trends</p>
       </div>
 
       <ChartCard title="Collections vs Obligations" subtitle="Monthly, last 12 months">
@@ -377,14 +377,14 @@ export default function CashPage() {
 
       {/* === BACKLOG === */}
       <div className="pt-2">
-        <h2 className="text-lg font-semibold text-[#1A1A1A]">Backlog & Conversion</h2>
-        <p className="text-[12px] text-[#5F6368] mt-0.5">Open orders, invoicing pipeline, and order-to-cash conversion</p>
+        <h2 className="text-lg font-semibold text-foreground">Backlog & Conversion</h2>
+        <p className="text-[12px] text-muted-foreground mt-0.5">Open orders, invoicing pipeline, and order-to-cash conversion</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ChartCard title="Backlog by Customer" subtitle={`Total: ${formatCurrency(Number(k.backlog_value || 0))}`}>
           {(bl.byCustomer || []).length === 0 ? (
-            <p className="text-[13px] text-[#5F6368] py-8 text-center">No open sales orders</p>
+            <p className="text-[13px] text-muted-foreground py-8 text-center">No open sales orders</p>
           ) : (
             <DataTable
               columns={[
@@ -418,14 +418,14 @@ export default function CashPage() {
 
       {/* === RISK & ALERTS === */}
       <div className="pt-2">
-        <h2 className="text-lg font-semibold text-[#1A1A1A]">Risk & Alerts</h2>
-        <p className="text-[12px] text-[#5F6368] mt-0.5">Overdue exposures, risk flags, and data freshness</p>
+        <h2 className="text-lg font-semibold text-foreground">Risk & Alerts</h2>
+        <p className="text-[12px] text-muted-foreground mt-0.5">Overdue exposures, risk flags, and data freshness</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ChartCard title="High-Risk Customers" subtitle="Large overdue balances">
           {(alerts.riskCustomers || []).length === 0 ? (
-            <p className="text-[13px] text-[#137333] py-4 text-center">No high-risk customers</p>
+            <p className="text-[13px] text-brand-success py-4 text-center">No high-risk customers</p>
           ) : (
             <DataTable
               columns={[
@@ -443,7 +443,7 @@ export default function CashPage() {
 
         <ChartCard title="High-Risk Vendors" subtitle="Significant unpaid obligations">
           {(alerts.riskVendors || []).length === 0 ? (
-            <p className="text-[13px] text-[#137333] py-4 text-center">No high-risk vendors</p>
+            <p className="text-[13px] text-brand-success py-4 text-center">No high-risk vendors</p>
           ) : (
             <DataTable
               columns={[

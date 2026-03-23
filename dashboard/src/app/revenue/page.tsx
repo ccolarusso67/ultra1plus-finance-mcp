@@ -18,9 +18,9 @@ import { useCompany } from "@/lib/company";
 type R = Record<string, any>;
 
 function ChangeIndicator({ value, suffix = "%" }: { value: number; suffix?: string }) {
-  if (value > 0) return <span className="text-[#137333] text-[12px] font-medium">+{value}{suffix}</span>;
-  if (value < 0) return <span className="text-[#C5221F] text-[12px] font-medium">{value}{suffix}</span>;
-  return <span className="text-[#5F6368] text-[12px]">0{suffix}</span>;
+  if (value > 0) return <span className="text-brand-success text-[12px] font-medium">+{value}{suffix}</span>;
+  if (value < 0) return <span className="text-brand-danger text-[12px] font-medium">{value}{suffix}</span>;
+  return <span className="text-muted-foreground text-[12px]">0{suffix}</span>;
 }
 
 export default function RevenuePage() {
@@ -59,8 +59,8 @@ export default function RevenuePage() {
     <div className="space-y-8">
       {/* === SECTION: P&L Summary === */}
       <div>
-        <h1 className="text-xl font-semibold text-[#1A1A1A]">Revenue & P&L</h1>
-        <p className="text-[12px] text-[#5F6368] mt-0.5">Income, profitability, margins, and period comparisons</p>
+        <h1 className="text-xl font-semibold text-foreground">Revenue & P&L</h1>
+        <p className="text-[12px] text-muted-foreground mt-0.5">Income, profitability, margins, and period comparisons</p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -92,8 +92,8 @@ export default function RevenuePage() {
 
       {/* === SECTION: Period Comparisons === */}
       <div className="pt-2">
-        <h2 className="text-lg font-semibold text-[#1A1A1A]">Period Comparisons</h2>
-        <p className="text-[12px] text-[#5F6368] mt-0.5">Quarter-over-quarter, year-over-year, and YTD analysis</p>
+        <h2 className="text-lg font-semibold text-foreground">Period Comparisons</h2>
+        <p className="text-[12px] text-muted-foreground mt-0.5">Quarter-over-quarter, year-over-year, and YTD analysis</p>
       </div>
 
       {/* QoQ + YTD Comparison Cards */}
@@ -102,24 +102,24 @@ export default function RevenuePage() {
         <ChartCard title="Quarter over Quarter" subtitle={`${qoq.current_label || ''} vs ${qoq.prior_label || ''}`}>
           <div className="space-y-4 px-2 py-3">
             <div className="flex justify-between items-center">
-              <span className="text-[12px] text-[#5F6368]">Revenue</span>
+              <span className="text-[12px] text-muted-foreground">Revenue</span>
               <div className="text-right">
                 <div className="text-[15px] font-semibold">{formatCurrency(Number(qoq.current_revenue || 0))}</div>
                 <ChangeIndicator value={Number(qoq.revenue_change_pct || 0)} />
               </div>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-[12px] text-[#5F6368]">Gross Profit</span>
+              <span className="text-[12px] text-muted-foreground">Gross Profit</span>
               <div className="text-right">
                 <div className="text-[15px] font-semibold">{formatCurrency(Number(qoq.current_gp || 0))}</div>
-                <span className="text-[12px] text-[#5F6368]">prior: {formatCurrency(Number(qoq.prior_gp || 0))}</span>
+                <span className="text-[12px] text-muted-foreground">prior: {formatCurrency(Number(qoq.prior_gp || 0))}</span>
               </div>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-[12px] text-[#5F6368]">Margin</span>
+              <span className="text-[12px] text-muted-foreground">Margin</span>
               <div className="text-right">
                 <span className="text-[15px] font-semibold">{qoq.current_margin || 0}%</span>
-                <span className="text-[12px] text-[#5F6368] ml-2">was {qoq.prior_margin || 0}%</span>
+                <span className="text-[12px] text-muted-foreground ml-2">was {qoq.prior_margin || 0}%</span>
               </div>
             </div>
           </div>
@@ -129,21 +129,21 @@ export default function RevenuePage() {
         <ChartCard title="YTD vs Prior YTD" subtitle={`Jan–now ${new Date().getFullYear()} vs ${new Date().getFullYear() - 1}`}>
           <div className="space-y-4 px-2 py-3">
             <div className="flex justify-between items-center">
-              <span className="text-[12px] text-[#5F6368]">Revenue</span>
+              <span className="text-[12px] text-muted-foreground">Revenue</span>
               <div className="text-right">
                 <div className="text-[15px] font-semibold">{formatCurrency(Number(ytdComp.ytd_revenue || 0))}</div>
                 <ChangeIndicator value={Number(ytdComp.rev_change_pct || 0)} />
               </div>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-[12px] text-[#5F6368]">Prior YTD Revenue</span>
+              <span className="text-[12px] text-muted-foreground">Prior YTD Revenue</span>
               <div className="text-[15px] font-semibold">{formatCurrency(Number(ytdComp.prior_ytd_revenue || 0))}</div>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-[12px] text-[#5F6368]">Margin</span>
+              <span className="text-[12px] text-muted-foreground">Margin</span>
               <div className="text-right">
                 <span className="text-[15px] font-semibold">{ytdComp.ytd_margin || 0}%</span>
-                <span className="text-[12px] text-[#5F6368] ml-2">was {ytdComp.prior_ytd_margin || 0}%</span>
+                <span className="text-[12px] text-muted-foreground ml-2">was {ytdComp.prior_ytd_margin || 0}%</span>
               </div>
             </div>
           </div>
@@ -183,15 +183,15 @@ export default function RevenuePage() {
       {/* === SECTION: Revenue Analytics === */}
       <div className="pt-2 flex items-end justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-[#1A1A1A]">Revenue Analytics</h2>
-          <p className="text-[12px] text-[#5F6368] mt-0.5">Revenue breakdown by customer, product, and category</p>
+          <h2 className="text-lg font-semibold text-foreground">Revenue Analytics</h2>
+          <p className="text-[12px] text-muted-foreground mt-0.5">Revenue breakdown by customer, product, and category</p>
         </div>
         <div className="flex items-center gap-2">
-          <Calendar size={14} className="text-[#5F6368]" />
+          <Calendar size={14} className="text-muted-foreground" />
           <select
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
-            className="text-[13px] border border-[#E0E0E0] rounded px-3 py-1.5 bg-white text-[#1A1A1A] focus:outline-none focus:border-[#0098DB] cursor-pointer"
+            className="text-[13px] border border-border rounded px-3 py-1.5 bg-card text-foreground focus:outline-none focus:border-[#0098DB] cursor-pointer"
           >
             <optgroup label="Trailing">
               <option value="trailing6">Last 6 months</option>
@@ -226,7 +226,7 @@ export default function RevenuePage() {
                 render: (r: R) => <span className="font-semibold">{formatCurrency(Number(r.revenue))}</span> },
               { key: "margin_pct", label: "Margin", align: "right" as const,
                 render: (r: R) => (
-                  <span className={Number(r.margin_pct) >= 30 ? "text-[#137333]" : Number(r.margin_pct) >= 15 ? "text-[#E37400]" : "text-[#C5221F]"}>
+                  <span className={Number(r.margin_pct) >= 30 ? "text-brand-success" : Number(r.margin_pct) >= 15 ? "text-brand-warning" : "text-brand-danger"}>
                     {r.margin_pct}%
                   </span>
                 )},
@@ -246,7 +246,7 @@ export default function RevenuePage() {
                 render: (r: R) => <span className="font-semibold">{formatCurrency(Number(r.revenue))}</span> },
               { key: "margin_pct", label: "Margin", align: "right" as const,
                 render: (r: R) => (
-                  <span className={Number(r.margin_pct) >= 30 ? "text-[#137333]" : Number(r.margin_pct) >= 15 ? "text-[#E37400]" : "text-[#C5221F]"}>
+                  <span className={Number(r.margin_pct) >= 30 ? "text-brand-success" : Number(r.margin_pct) >= 15 ? "text-brand-warning" : "text-brand-danger"}>
                     {r.margin_pct}%
                   </span>
                 )},
@@ -260,8 +260,8 @@ export default function RevenuePage() {
 
       {/* === SECTION: Margin Analysis === */}
       <div className="pt-2">
-        <h2 className="text-lg font-semibold text-[#1A1A1A]">Margin Analysis</h2>
-        <p className="text-[12px] text-[#5F6368] mt-0.5">Gross and net margin trends by period, customer, and product</p>
+        <h2 className="text-lg font-semibold text-foreground">Margin Analysis</h2>
+        <p className="text-[12px] text-muted-foreground mt-0.5">Gross and net margin trends by period, customer, and product</p>
       </div>
 
       {/* Margin Trend Charts */}
@@ -336,7 +336,7 @@ export default function RevenuePage() {
             { key: "gross_profit", label: "Gross Profit", align: "right" as const, render: (r: R) => formatCurrency(Number(r.gross_profit)) },
             { key: "margin_pct", label: "Margin %", align: "right" as const, render: (r: R) => <span className="font-semibold">{String(r.margin_pct)}%</span> },
             { key: "net_income", label: "Net Income", align: "right" as const, render: (r: R) => (
-              <span className={Number(r.net_income) >= 0 ? "text-[#137333] font-semibold" : "text-[#C5221F] font-semibold"}>
+              <span className={Number(r.net_income) >= 0 ? "text-brand-success font-semibold" : "text-brand-danger font-semibold"}>
                 {formatCurrency(Number(r.net_income))}
               </span>
             )},

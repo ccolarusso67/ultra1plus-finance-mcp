@@ -29,8 +29,8 @@ export default function CustomersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold text-[#1A1A1A]">Customers</h1>
-        <p className="text-[12px] text-[#5F6368] mt-0.5">Customer performance, margins, and intelligence</p>
+        <h1 className="text-xl font-semibold text-foreground">Customers</h1>
+        <p className="text-[12px] text-muted-foreground mt-0.5">Customer performance, margins, and intelligence</p>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -82,7 +82,7 @@ export default function CustomersPage() {
             { key: "revenue", label: "Revenue", align: "right", render: (r) => formatCurrency(Number(r.revenue)) },
             { key: "gross_margin", label: "Margin $", align: "right", render: (r) => formatCurrency(Number(r.gross_margin)) },
             { key: "margin_pct", label: "Margin %", align: "right", render: (r) => (
-              <span className={Number(r.margin_pct) < 25 ? "text-[#C5221F] font-semibold" : "font-semibold"}>
+              <span className={Number(r.margin_pct) < 25 ? "text-brand-danger font-semibold" : "font-semibold"}>
                 {String(r.margin_pct)}%
               </span>
             )},
@@ -99,7 +99,7 @@ export default function CustomersPage() {
             columns={[
               { key: "customer_name", label: "Customer" },
               { key: "decline_amount", label: "Decline $", align: "right", render: (r) => (
-                <span className="text-[#C5221F] font-semibold">{formatCurrency(Number(r.decline_amount))}</span>
+                <span className="text-brand-danger font-semibold">{formatCurrency(Number(r.decline_amount))}</span>
               )},
               { key: "decline_pct", label: "Decline %", align: "right", render: (r) => (
                 <StatusBadge status="danger" label={`-${String(r.decline_pct)}%`} />
