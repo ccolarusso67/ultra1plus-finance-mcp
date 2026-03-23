@@ -95,24 +95,28 @@ export default function RevenuePage() {
         </Card>
       </Grid>
 
-      {/* Monthly P&L */}
+      {/* Monthly P&L — Rolling Year */}
       <Card>
         <Title>Monthly P&amp;L</Title>
-        <Subtitle>Income, COGS, and Net Income by month</Subtitle>
+        <Subtitle>Rolling year — Jan 2025 to present</Subtitle>
         <TremorBarChart
-          className="mt-4 h-80"
-          data={monthly.map((r: R) => ({
-            month: String(r.label),
-            Revenue: Number(r.income || 0),
-            COGS: Number(r.cogs || 0),
-            "Net Income": Number(r.net_income || 0),
-          }))}
+          className="mt-4 h-96"
+          data={monthly
+            .filter((r: R) => {
+              const d = new Date(String(r.month));
+              return d >= new Date("2025-01-01");
+            })
+            .map((r: R) => ({
+              month: String(r.label),
+              Revenue: Number(r.income || 0),
+              COGS: Number(r.cogs || 0),
+              "Net Income": Number(r.net_income || 0),
+            }))}
           index="month"
           categories={["Revenue", "COGS", "Net Income"]}
           colors={["blue", "rose", "emerald"]}
           valueFormatter={(v: number) => currencyFormatter(v)}
           showAnimation
-          stack
         />
       </Card>
 
