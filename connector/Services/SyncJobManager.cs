@@ -73,8 +73,8 @@ public class SyncJobManager
             ["ar_aging_sync"] = new ArAgingSyncJob(_connectionString, companyId),
             ["ap_aging_sync"] = new ApAgingSyncJob(_connectionString, companyId),
             ["inventory_sync"] = new InventorySyncJob(_connectionString, companyId),
-            ["pnl_sync"] = new PnlSyncJob(_connectionString, companyId),
-            ["sales_by_customer_sync"] = new SalesByCustomerSyncJob(_connectionString, companyId),
+            ["pnl_sync"] = new PnlSyncJob(_connectionString, companyId, backfillStartYear),
+            ["sales_by_customer_sync"] = new SalesByCustomerSyncJob(_connectionString, companyId, backfillStartYear),
         };
 
         _logger.LogInformation("Created {Count} sync jobs for company {Company}",

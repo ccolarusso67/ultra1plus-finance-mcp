@@ -6,7 +6,11 @@ namespace U1PFinanceSync.Services.SyncJobs;
 /// <summary>
 /// Syncs Sales by Customer Summary report from QuickBooks Desktop.
 /// Uses GeneralSummaryReportQuery with SalesByCustomerSummary type.
-/// Captures revenue, COGS, and margin per customer for the current quarter.
+///
+/// First run: queries every quarter from StartYear (default 2020) to present,
+/// giving full historical sales-by-customer data.
+/// Ongoing runs: queries the current quarter + prior quarter to keep
+/// data fresh and capture late entries.
 /// </summary>
 public class SalesByCustomerSyncJob : ISyncJob
 {
@@ -15,22 +19,56 @@ public class SalesByCustomerSyncJob : ISyncJob
 
     private readonly string _connectionString;
     private readonly string _companyId;
+    private readonly int _startYear;
 
-    public SalesByCustomerSyncJob(string connectionString, string companyId)
+    public SalesByCustomerSyncJob(string connectionString, string companyId, int startYear = 2020)
     {
         _connectionString = connectionString;
         _companyId = companyId;
+        _startYear = startYear;
     }
 
     public List<string> GetQbXmlRequests()
     {
+        var requests = new List<string>();
         var now = DateTime.UtcNow;
-        var quarterStart = new DateTime(now.Year, ((now.Month - 1) / 3) * 3 + 1, 1);
-        var quarterEnd = quarterStart.AddMonths(3).AddDays(-1);
+        var currentQuarterStart = new DateTime(now.Year, ((now.Month - 1) / 3) * 3 + 1, 1);
 
-        return new List<string>
+        // Determine start: check if we have any data already
+        DateTime queryStart;
+        try
         {
-            $@"<?xml version=""1.0"" encoding=""utf-8""?>
+            using var conn = new NpgsqlConnection(_connectionString);
+            conn.Open();
+            using var cmd = new NpgsqlCommand(
+                "SELECT COUNT(*) FROM sales_by_customer WHERE company_id = @cid", conn);
+            cmd.Parameters.AddWithValue("cid", _companyId);
+            var count = Convert.ToInt64(cmd.ExecuteScalar());
+
+            if (count == 0)
+            {
+                // First run: full historical load — every quarter from startYear
+                queryStart = new DateTime(_startYear, 1, 1);
+            }
+            else
+            {
+                // Ongoing: refresh current quarter + prior quarter
+                queryStart = currentQuarterStart.AddMonths(-3);
+            }
+        }
+        catch
+        {
+            // If DB check fails, do full historical
+            queryStart = new DateTime(_startYear, 1, 1);
+        }
+
+        // Generate one request per quarter from queryStart to current quarter
+        for (var qStart = queryStart; qStart <= currentQuarterStart; qStart = qStart.AddMonths(3))
+        {
+            var qEnd = qStart.AddMonths(3).AddDays(-1);
+            if (qEnd > now) qEnd = now;
+
+            requests.Add($@"<?xml version=""1.0"" encoding=""utf-8""?>
             <?qbxml version=""16.0""?>
             <QBXML>
                 <QBXMLMsgsRq onError=""continueOnError"">
@@ -38,14 +76,16 @@ public class SalesByCustomerSyncJob : ISyncJob
                         <GeneralSummaryReportType>SalesByCustomerSummary</GeneralSummaryReportType>
                         <DisplayReport>false</DisplayReport>
                         <ReportPeriod>
-                            <FromReportDate>{quarterStart:yyyy-MM-dd}</FromReportDate>
-                            <ToReportDate>{quarterEnd:yyyy-MM-dd}</ToReportDate>
+                            <FromReportDate>{qStart:yyyy-MM-dd}</FromReportDate>
+                            <ToReportDate>{qEnd:yyyy-MM-dd}</ToReportDate>
                         </ReportPeriod>
                         <SummarizeColumnsBy>TotalOnly</SummarizeColumnsBy>
                     </GeneralSummaryReportQueryRq>
                 </QBXMLMsgsRq>
-            </QBXML>"
-        };
+            </QBXML>");
+        }
+
+        return requests;
     }
 
     public async Task ProcessResponseAsync(string responseXml)

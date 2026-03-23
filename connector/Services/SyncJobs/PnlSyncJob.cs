@@ -6,7 +6,11 @@ namespace U1PFinanceSync.Services.SyncJobs;
 /// <summary>
 /// Syncs monthly Profit & Loss report from QuickBooks Desktop.
 /// Uses GeneralSummaryReportQuery with ProfitAndLossStandard type.
-/// Runs nightly — captures each month's P&L for the current fiscal year.
+///
+/// First run: queries every month from StartYear (default 2020) to present,
+/// giving full historical P&L for trend analysis.
+/// Ongoing runs: queries the last 3 months (current + 2 prior) to keep
+/// data fresh without hammering QuickBooks with years of reports every night.
 /// </summary>
 public class PnlSyncJob : ISyncJob
 {
@@ -15,20 +19,51 @@ public class PnlSyncJob : ISyncJob
 
     private readonly string _connectionString;
     private readonly string _companyId;
+    private readonly int _startYear;
 
-    public PnlSyncJob(string connectionString, string companyId)
+    public PnlSyncJob(string connectionString, string companyId, int startYear = 2020)
     {
         _connectionString = connectionString;
         _companyId = companyId;
+        _startYear = startYear;
     }
 
     public List<string> GetQbXmlRequests()
     {
         var requests = new List<string>();
         var now = DateTime.UtcNow;
-        var yearStart = new DateTime(now.Year, 1, 1);
 
-        for (var month = yearStart; month <= now; month = month.AddMonths(1))
+        // Determine start date: check if we have any P&L data already
+        // If not, do a full historical load from _startYear
+        // If yes, only refresh the last 3 months (current + 2 prior)
+        DateTime queryStart;
+        try
+        {
+            using var conn = new NpgsqlConnection(_connectionString);
+            conn.Open();
+            using var cmd = new NpgsqlCommand(
+                "SELECT COUNT(*) FROM monthly_pnl WHERE company_id = @cid", conn);
+            cmd.Parameters.AddWithValue("cid", _companyId);
+            var count = Convert.ToInt64(cmd.ExecuteScalar());
+
+            if (count == 0)
+            {
+                // First run: full historical load
+                queryStart = new DateTime(_startYear, 1, 1);
+            }
+            else
+            {
+                // Ongoing: refresh last 3 months (handles late adjustments)
+                queryStart = new DateTime(now.Year, now.Month, 1).AddMonths(-2);
+            }
+        }
+        catch
+        {
+            // If DB check fails, do full historical to be safe
+            queryStart = new DateTime(_startYear, 1, 1);
+        }
+
+        for (var month = queryStart; month <= now; month = month.AddMonths(1))
         {
             var monthEnd = month.AddMonths(1).AddDays(-1);
             if (monthEnd > now) monthEnd = now;
