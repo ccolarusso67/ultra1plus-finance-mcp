@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ jobs });
   } catch (error) {
     console.error("Sync Health API error:", error);
-    return NextResponse.json({ error: "Failed to load sync status" }, { status: 500 });
+    const message = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: "Failed to load sync status", detail: message }, { status: 500 });
   }
 }
