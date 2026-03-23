@@ -218,7 +218,7 @@ export default function RevenuePage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Revenue by Customer */}
-        <ChartCard title="Revenue by Customer" subtitle="Top 25 — {periodLabel}">
+        <ChartCard title="Revenue by Customer" subtitle={`Top 25 — ${periodLabel}`}>
           <DataTable
             columns={[
               { key: "customer_name", label: "Customer" },
@@ -238,7 +238,7 @@ export default function RevenuePage() {
         </ChartCard>
 
         {/* Revenue by Product */}
-        <ChartCard title="Revenue by Product" subtitle="Top 25 — {periodLabel}">
+        <ChartCard title="Revenue by Product" subtitle={`Top 25 — ${periodLabel}`}>
           <DataTable
             columns={[
               { key: "product_name", label: "Product" },
@@ -299,7 +299,7 @@ export default function RevenuePage() {
 
       {/* Margin by Customer + Product */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartCard title="Margin by Customer" subtitle="Top 15 by revenue — {periodLabel}">
+        <ChartCard title="Margin by Customer" subtitle={`Top 15 by revenue — ${periodLabel}`}>
           <ResponsiveContainer width="100%" height={360}>
             <BarChart data={marginByCustomer} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
@@ -312,7 +312,7 @@ export default function RevenuePage() {
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Margin by Product" subtitle="Top 15 by revenue — {periodLabel}">
+        <ChartCard title="Margin by Product" subtitle={`Top 15 by revenue — ${periodLabel}`}>
           <ResponsiveContainer width="100%" height={360}>
             <BarChart data={marginByProduct} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="#E0E0E0" />
