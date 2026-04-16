@@ -1,58 +1,86 @@
 """Bearer token authentication middleware for the Ultra1Plus Finance MCP server.
 
-Enforces the MCP_API_KEY on POST requests to the /mcp endpoint.
-GET requests return a 200 server info response for discovery probes.
+Pure ASGI middleware — does not wrap response body, safe for SSE/streaming.
+Enforces MCP_API_KEY on POST requests. Allows GET through for discovery.
 """
 
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
-from starlette.responses import JSONResponse
+import json
 
 
-class BearerAuthMiddleware(BaseHTTPMiddleware):
-    """Validate Authorization: Bearer <token> on POST to /mcp path."""
+class BearerAuthMiddleware:
+    """Pure ASGI middleware for bearer token auth on /mcp POST requests."""
 
     def __init__(self, app, api_key: str):
-        super().__init__(app)
+        self.app = app
         self.api_key = api_key
 
-    async def dispatch(self, request: Request, call_next):
-        if not request.url.path.startswith("/mcp"):
-            return await call_next(request)
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
 
-        # Return 200 for GET/HEAD/OPTIONS — discovery probes and health checks
-        if request.method in ("GET", "HEAD", "OPTIONS"):
-            return JSONResponse({
-                "name": "ultra1plus-finance",
-                "version": "0.1.0",
-                "status": "ok",
-                "protocol": "mcp-streamable-http",
-                "tools": 23,
-                "resources": 6
-            })
+        path = scope.get("path", "")
+        method = scope.get("method", "")
 
-        # POST requests require Bearer token
-        auth_header = request.headers.get("Authorization", "")
+        # Only enforce auth on POST to /mcp
+        if not path.startswith("/mcp") or method in ("GET", "HEAD", "OPTIONS"):
+            # GET returns server info for discovery probes
+            if path.startswith("/mcp") and method == "GET":
+                body = json.dumps({
+                    "name": "ultra1plus-finance",
+                    "version": "0.1.0",
+                    "status": "ok",
+                    "protocol": "mcp-streamable-http",
+                    "tools": 23,
+                    "resources": 6
+                }).encode()
+                await send({
+                    "type": "http.response.start",
+                    "status": 200,
+                    "headers": [
+                        [b"content-type", b"application/json"],
+                        [b"content-length", str(len(body)).encode()],
+                    ],
+                })
+                await send({
+                    "type": "http.response.body",
+                    "body": body,
+                })
+                return
+            await self.app(scope, receive, send)
+            return
 
-        if not auth_header:
-            return JSONResponse(
-                {"error": "Missing Authorization header"},
-                status_code=401,
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+        # Extract Authorization header from scope
+        headers = dict(scope.get("headers", []))
+        auth_value = headers.get(b"authorization", b"").decode()
 
-        if not auth_header.startswith("Bearer "):
-            return JSONResponse(
-                {"error": "Authorization header must use Bearer scheme"},
-                status_code=401,
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+        if not auth_value:
+            await self._reject(send, 401, "Missing Authorization header")
+            return
 
-        provided_token = auth_header[7:]
-        if provided_token != self.api_key:
-            return JSONResponse(
-                {"error": "Invalid token"},
-                status_code=403,
-            )
+        if not auth_value.startswith("Bearer "):
+            await self._reject(send, 401, "Authorization header must use Bearer scheme")
+            return
 
-        return await call_next(request)
+        token = auth_value[7:]
+        if token != self.api_key:
+            await self._reject(send, 403, "Invalid token")
+            return
+
+        # Auth passed — hand off to MCP handler without touching the response
+        await self.app(scope, receive, send)
+
+    async def _reject(self, send, status, message):
+        body = json.dumps({"error": message}).encode()
+        await send({
+            "type": "http.response.start",
+            "status": status,
+            "headers": [
+                [b"content-type", b"application/json"],
+                [b"content-length", str(len(body)).encode()],
+            ],
+        })
+        await send({
+            "type": "http.response.body",
+            "body": body,
+        })
