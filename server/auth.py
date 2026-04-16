@@ -17,15 +17,12 @@ class BearerAuthMiddleware(BaseHTTPMiddleware):
         self.api_key = api_key
 
     async def dispatch(self, request: Request, call_next):
-        # Only enforce auth on the MCP endpoint
         if not request.url.path.startswith("/mcp"):
             return await call_next(request)
 
-        # Allow GET/OPTIONS through for discovery probes
         if request.method in ("GET", "OPTIONS", "HEAD"):
             return await call_next(request)
 
-        # POST requests require Bearer token (tool execution)
         auth_header = request.headers.get("Authorization", "")
 
         if not auth_header:
