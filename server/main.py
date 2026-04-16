@@ -93,11 +93,9 @@ if __name__ == "__main__":
 
     # Build the Starlette app from FastMCP
     # This creates the MCP protocol handler mounted at /mcp
-    app = mcp.streamable_http_app()
 
-    # Add bearer token auth middleware
-    # Must be added before the first request (Starlette builds middleware stack lazily)
-    app.add_middleware(BearerAuthMiddleware, api_key=settings.mcp_api_key)
+    raw_app = mcp.streamable_http_app()
+    app = BearerAuthMiddleware(raw_app, api_key=settings.mcp_api_key)
 
     logger.info(
         "MCP server binding to %s:%d with bearer auth enabled",
