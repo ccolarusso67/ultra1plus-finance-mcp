@@ -1,7 +1,7 @@
 """Bearer token authentication middleware for the Ultra1Plus Finance MCP server.
 
-Enforces the MCP_API_KEY from config.py on all requests to the /mcp endpoint.
-Requests without a valid Bearer token are rejected before reaching any tool handler.
+Enforces the MCP_API_KEY from config.py on POST requests to the /mcp endpoint.
+GET requests are allowed through for MCP discovery/probes.
 """
 
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -10,16 +10,22 @@ from starlette.responses import JSONResponse
 
 
 class BearerAuthMiddleware(BaseHTTPMiddleware):
-    """Validate Authorization: Bearer <token> on the /mcp path."""
+    """Validate Authorization: Bearer <token> on POST to /mcp path."""
 
     def __init__(self, app, api_key: str):
         super().__init__(app)
         self.api_key = api_key
 
     async def dispatch(self, request: Request, call_next):
+        # Only enforce auth on the MCP endpoint
         if not request.url.path.startswith("/mcp"):
             return await call_next(request)
 
+        # Allow GET/OPTIONS through for discovery probes
+        if request.method in ("GET", "OPTIONS", "HEAD"):
+            return await call_next(request)
+
+        # POST requests require Bearer token (tool execution)
         auth_header = request.headers.get("Authorization", "")
 
         if not auth_header:
