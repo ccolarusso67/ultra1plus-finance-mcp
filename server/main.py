@@ -34,7 +34,6 @@ async def server_lifespan(server: FastMCP):
 # Create MCP server
 mcp = FastMCP(
     name=settings.server_name,
-    version=settings.server_version,
     lifespan=server_lifespan,
 )
 
@@ -87,9 +86,35 @@ register_resources(mcp)
 logger.info("Registered %d tools", len(_registrations))
 
 
-import os
-os.environ["HOST"] = settings.mcp_host
-os.environ["PORT"] = str(settings.mcp_port)
-
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http")
+    import asyncio
+    import uvicorn
+    from auth import BearerAuthMiddleware
+
+    # Build the Starlette app from FastMCP
+    # This creates the MCP protocol handler mounted at /mcp
+    app = mcp.streamable_http_app()
+
+    # Add bearer token auth middleware
+    # Must be added before the first request (Starlette builds middleware stack lazily)
+    app.add_middleware(BearerAuthMiddleware, api_key=settings.mcp_api_key)
+
+    logger.info(
+        "MCP server binding to %s:%d with bearer auth enabled",
+        settings.mcp_host,
+        settings.mcp_port,
+    )
+
+    # Run uvicorn with the correct host/port from our config
+    # NOTE: We do NOT use mcp.run() because:
+    #   1. mcp.run() reads FASTMCP_HOST/FASTMCP_PORT (env prefix FASTMCP_),
+    #      ignoring our MCP_HOST/MCP_PORT config values
+    #   2. mcp.run() provides no hook to add auth middleware before app startup
+    config = uvicorn.Config(
+        app,
+        host=settings.mcp_host,
+        port=settings.mcp_port,
+        log_level="info",
+    )
+    server = uvicorn.Server(config)
+    asyncio.run(server.serve())
